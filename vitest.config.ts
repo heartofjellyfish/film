@@ -25,6 +25,12 @@ export default defineConfig({
         // AssetGate.tsx is the React component shell; useFrame cannot run in jsdom.
         // Pure logic (shouldReveal) lives in AssetGate.ts and is 100% covered there.
         '**/AssetGate.tsx',
+        // WebGLFallback.tsx is simple static DOM — no logic to unit-test (spec §08 exemption).
+        '**/WebGLFallback.tsx',
+        // TweakPanel.tsx is the dev-only stub; module 09 fills it in.
+        // Leva UI is not unit-testable (per detailed design §2.9).
+        // FilmRoot excludes it from the scenes/index mock path is exempt too.
+        '**/scenes/index.tsx',
       ],
       thresholds: { lines: 80, functions: 80, branches: 80 },
     },

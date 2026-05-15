@@ -2,8 +2,13 @@
  * useModeMachine — React integration for ModeMachine.
  *
  * Provides:
- *   <ModeMachineProvider deps={...}>  — creates and owns the ModeMachine instance
- *   useModeMachine()                  — hook to access the machine in any child
+ *   <ModeMachineProvider machine={...}>  — owns the ModeMachine instance lifecycle
+ *   useModeMachine()                     — hook to access the machine in any child
+ *
+ * FilmRoot creates the ModeMachine with createModeMachine(deps) and passes it in.
+ * This gives FilmRoot direct access to machine.start() / machine.depthRef before
+ * the Provider is even mounted — essential for the EntryCeremony onStart gesture
+ * that must call machine.start() synchronously.
  *
  * This is NOT a state library. It is pure dependency injection via React Context.
  * No zustand, jotai, redux, or similar libraries are used.
@@ -11,8 +16,8 @@
  * The machine itself manages the scroll listener lifecycle. The Provider's
  * useEffect cleanup calls machine.dispose() to remove listeners on unmount.
  */
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
-import { createModeMachine, type ModeMachine, type ModeMachineDeps } from './ModeMachine';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import type { ModeMachine } from './ModeMachine';
 
 // ---------------------------------------------------------------------------
 // Context
@@ -25,16 +30,12 @@ const ModeMachineContext = createContext<ModeMachine | null>(null);
 // ---------------------------------------------------------------------------
 
 export interface ModeMachineProviderProps {
-  deps: ModeMachineDeps;
+  /** Pre-constructed ModeMachine instance. FilmRoot creates it with createModeMachine(). */
+  machine: ModeMachine;
   children: ReactNode;
 }
 
-export function ModeMachineProvider({ deps, children }: ModeMachineProviderProps) {
-  // Create the machine once on mount. deps is expected to be stable (constructed
-  // in FilmRoot with useMemo or at module scope) — we don't re-create on dep change.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const machine = useMemo(() => createModeMachine(deps), []);
-
+export function ModeMachineProvider({ machine, children }: ModeMachineProviderProps) {
   useEffect(() => {
     // Clean up scroll listener and subscribers on unmount.
     return () => {
