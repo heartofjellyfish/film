@@ -121,12 +121,16 @@ describe('getAllAnchors', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Cross-module consistency with audio manifest — deferred to module 06.
+// Cross-module consistency with audio manifest — activated in module 06.
 // ---------------------------------------------------------------------------
-describe('cross-module consistency (deferred)', () => {
-  // This test enforces the §3.5 contract: every registry slug must have a
-  // matching TRACKS entry in components/film/audio/manifest.ts. The manifest
-  // file is created by module 06; until then we leave this test skipped with
-  // a TODO comment so the reviewer can see the intent.
-  it.todo('every SCENE_REGISTRY slug has a matching TRACKS entry (TODO: enable after module 06)');
+describe('cross-module consistency', () => {
+  // Enforces the §3.5 / red line #4 contract:
+  //   SCENE_REGISTRY slugs ⊆ TRACKS keys, each with a non-empty placeholder.
+  it('all scene registry slugs have audio manifest entries (red line #4)', async () => {
+    const { TRACKS } = await import('../audio/manifest');
+    for (const reg of SCENE_REGISTRY) {
+      expect(TRACKS[reg.slug], `TRACKS["${reg.slug}"] must be defined`).toBeDefined();
+      expect(TRACKS[reg.slug]!.placeholder, `TRACKS["${reg.slug}"].placeholder must be truthy`).toBeTruthy();
+    }
+  });
 });

@@ -9,12 +9,25 @@ License: Sketchfab Standard License (royalty-free, commercial use)
 
 ## Placeholder audio
 
-<!-- Qi: add real entries here once placeholder WAVs are sourced from freesound.org (CC0) -->
-<!-- Format: **"Title"** by Author — https://freesound.org/s/<id>/ — CC0 -->
+These WAV files are **programmatically generated** (not sourced from freesound.org or any
+third-party library). They are synthesized by `scripts/generate-placeholder-audio.mjs`
+using pure sinusoidal mathematics + deterministic LCG noise — no external audio samples.
 
-- `public/audio/placeholder/ambient_ocean.wav` — source TBD (CC0)
-- `public/audio/placeholder/ambient_underwater.wav` — source TBD (CC0)
-- `public/audio/placeholder/ambient_membrane.wav` — source TBD (CC0)
+The author (Qi · 琦) holds all rights to the generated output and releases these
+placeholder files under **CC0 1.0 Universal** (public domain dedication). Anyone may
+use, modify, or redistribute them without attribution.
+
+- `public/audio/placeholder/ambient_ocean.wav` — procedurally generated ocean surf simulation
+  (layered sub-bass sines + band-pass noise, 7 s loop, 44.1 kHz mono 16-bit PCM)
+  © 2026 Qi · 琦, released under CC0 1.0
+
+- `public/audio/placeholder/ambient_underwater.wav` — procedurally generated deep sub-bass rumble
+  (sine cluster 82-118 Hz with slow AM modulation, 7 s loop, 44.1 kHz mono 16-bit PCM)
+  © 2026 Qi · 琦, released under CC0 1.0
+
+- `public/audio/placeholder/ambient_membrane.wav` — procedurally generated warm harmonic hum
+  (110/165 Hz harmonics with tremolo/vibrato, 7 s loop, 44.1 kHz mono 16-bit PCM)
+  © 2026 Qi · 琦, released under CC0 1.0
 
 ## Other
 
