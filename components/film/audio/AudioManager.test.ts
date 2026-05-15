@@ -424,7 +424,7 @@ describe('createAudioSubsystem', () => {
     expect(status.volume).toBe(0);
   });
 
-  it('getStatus returns current slug after anchor-entered and volume 0.8 after start', async () => {
+  it('getStatus returns current slug after anchor-entered and volume 0 after start (muted by default)', async () => {
     const machine = createMockModeMachine({ mode: 'auto' });
     const audio = createAudioSubsystem({
       modeMachine: machine,
@@ -440,7 +440,49 @@ describe('createAudioSubsystem', () => {
 
     const status = audio.getStatus();
     expect(status.current).toBe('i_sea_rising');
-    expect(status.volume).toBe(0.8); // masterGain value set in start()
+    expect(status.volume).toBe(0); // muted by default — SoundToggle ramps to 0.8 on unmute
+    expect(status.muted).toBe(true);
+  });
+
+  // ── setMuted ──────────────────────────────────────────────────────────────
+  it('setMuted(true) calls linearRampToValueAtTime with (0, ctx.currentTime + 0.3)', async () => {
+    const machine = createMockModeMachine({ mode: 'auto' });
+    const audio = createAudioSubsystem({
+      modeMachine: machine,
+      envProbe: { isMobile: false, autoplayBlocked: false },
+      manifest: TEST_MANIFEST,
+      reportAutoplayBlocked,
+    });
+
+    await audio.start();
+
+    const masterGainMock = mockCtx.createGain.mock.results[0]!.value as ReturnType<
+      ReturnType<typeof makeMockCtx>['createGain']
+    >;
+
+    audio.setMuted(true);
+
+    expect(masterGainMock.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, mockCtx.currentTime + 0.3);
+  });
+
+  it('setMuted(false) calls linearRampToValueAtTime with (0.8, ctx.currentTime + 0.3)', async () => {
+    const machine = createMockModeMachine({ mode: 'auto' });
+    const audio = createAudioSubsystem({
+      modeMachine: machine,
+      envProbe: { isMobile: false, autoplayBlocked: false },
+      manifest: TEST_MANIFEST,
+      reportAutoplayBlocked,
+    });
+
+    await audio.start();
+
+    const masterGainMock = mockCtx.createGain.mock.results[0]!.value as ReturnType<
+      ReturnType<typeof makeMockCtx>['createGain']
+    >;
+
+    audio.setMuted(false);
+
+    expect(masterGainMock.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.8, mockCtx.currentTime + 0.3);
   });
 
   // ── dispose ───────────────────────────────────────────────────────────────

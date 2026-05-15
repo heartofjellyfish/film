@@ -35,7 +35,8 @@ export interface AudioSubsystemDeps {
 export interface AudioSubsystem {
   start(): Promise<void>;
   setLowPassCutoff(hz: number, durationMs: number): void;
-  getStatus(): { current: TrackSlug | null; volume: number };
+  setMuted(muted: boolean): void;
+  getStatus(): { current: TrackSlug | null; volume: number; muted: boolean };
   dispose(): void;
 }
 
@@ -98,6 +99,9 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
 
   // -- Unsubscribe function from ModeMachine --
   let unsubscribe: (() => void) | null = null;
+
+  // -- Mute state --
+  let muted = true; // default muted
 
   // ---------------------------------------------------------------------------
   // Buffer loading
@@ -233,7 +237,7 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
       await ctx.resume(); // Must be called in user-gesture stack.
 
       masterGain = ctx.createGain();
-      masterGain.gain.value = 0.8;
+      masterGain.gain.value = 0; // default muted; SoundToggle ramps to 0.8 when user unmutes
 
       if (!envProbe.isMobile) {
         // Desktop: include lowPass in the signal chain.
@@ -259,15 +263,25 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
     }
   }
 
+  function setMuted(isMuted: boolean): void {
+    muted = isMuted;
+    if (!masterGain || !ctx) return;
+    masterGain.gain.linearRampToValueAtTime(
+      isMuted ? 0 : 0.8,
+      ctx.currentTime + 0.3,
+    );
+  }
+
   function setLowPassCutoff(hz: number, durationMs: number): void {
     if (!lowPass || !ctx) return; // mobile or not started — no-op
     lowPass.frequency.linearRampToValueAtTime(hz, ctx.currentTime + durationMs / 1000);
   }
 
-  function getStatus(): { current: TrackSlug | null; volume: number } {
+  function getStatus(): { current: TrackSlug | null; volume: number; muted: boolean } {
     return {
       current: currentSlug,
       volume: masterGain ? masterGain.gain.value : 0,
+      muted,
     };
   }
 
@@ -281,5 +295,5 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
     }
   }
 
-  return { start, setLowPassCutoff, getStatus, dispose };
+  return { start, setLowPassCutoff, setMuted, getStatus, dispose };
 }

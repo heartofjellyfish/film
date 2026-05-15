@@ -129,7 +129,8 @@ vi.mock('./ModeMachine', async (importOriginal) => {
 const mockAudioInstance = {
   start: vi.fn().mockResolvedValue(undefined),
   setLowPassCutoff: vi.fn(),
-  getStatus: vi.fn(() => ({ current: null, volume: 0 })),
+  setMuted: vi.fn(),
+  getStatus: vi.fn(() => ({ current: null, volume: 0, muted: true })),
   dispose: vi.fn(),
 };
 
@@ -183,6 +184,7 @@ describe('FilmRoot', () => {
     mockAudioInstance.start.mockClear();
     mockAudioInstance.dispose.mockClear();
     mockAudioInstance.setLowPassCutoff.mockClear();
+    mockAudioInstance.setMuted.mockClear();
   });
 
   afterEach(() => {

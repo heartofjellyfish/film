@@ -47,6 +47,7 @@ import { getAllAnchors } from './scenes/registry';
 import { Scenes } from './scenes/index';
 import { Overlay } from './Overlay';
 import { AudioProvider } from './AudioContext';
+import { SoundToggle } from './SoundToggle';
 import { TweakProvider } from './TweakStore';
 import { createAudioSubsystem, type AudioSubsystem } from './audio/AudioManager';
 import { TRACKS } from './audio/manifest';
@@ -294,7 +295,7 @@ export function FilmRoot() {
       <div style={{ minHeight: '400vh' }} aria-hidden="true" />
 
       <ModeMachineProvider machine={machine!}>
-        {/* AudioProvider: makes AudioSubsystem available to TweakPanel via useAudioSubsystem() */}
+        {/* AudioProvider: makes AudioSubsystem available to TweakPanel and SoundToggle via useAudioSubsystem() */}
         <AudioProvider value={audio!}>
           {/* TweakProvider: makes TweakValues ref available to Scenes and TweakPanel */}
           <TweakProvider>
@@ -305,6 +306,7 @@ export function FilmRoot() {
               onStart={handleStart}
             />
           </TweakProvider>
+          <SoundToggle />
         </AudioProvider>
       </ModeMachineProvider>
     </>
