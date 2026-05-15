@@ -22,6 +22,9 @@ export default defineConfig({
         '**/useModeMachine.tsx',
         // types.ts is all TypeScript type declarations, no runtime code
         '**/types.ts',
+        // AssetGate.tsx is the React component shell; useFrame cannot run in jsdom.
+        // Pure logic (shouldReveal) lives in AssetGate.ts and is 100% covered there.
+        '**/AssetGate.tsx',
       ],
       thresholds: { lines: 80, functions: 80, branches: 80 },
     },
