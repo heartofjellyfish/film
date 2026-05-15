@@ -53,3 +53,16 @@ See `CLAUDE.md` for full architecture notes, patterns, and the Bloom+transmissio
 - 3D model: `public/models/chrysaora/` — Pacific Sea Nettle (Sketchfab Standard License)
 - Placeholder audio: `public/audio/placeholder/` — CC0 ambients (see CREDITS.md)
 - Real tracks: `public/audio/tracks/` — **never commit mp3s to git**, CDN later
+
+---
+
+## URL Routes
+
+| URL | Behavior |
+|---|---|
+| `/` | Full film: entry ceremony → Auto mode → Sea Rising (#1) → The Heart of the Jellyfish (#6) → EndCard |
+| `/?focus=i_sea_rising` | Skips to #1 immediately after entry, locks depthRef at anchor 0.05 |
+| `/?focus=vi_heart` | Skips to #6 immediately after entry, locks depthRef at anchor 0.55 — use this for verifying the sanctuary feel |
+| `/?tweak=1` | Adds Leva slider panel (top-right) for live-tuning sky / water / bloom / fog params |
+| `/?stats=1` | Adds R3F Stats overlay showing FPS and draw-call counter |
+| `/preview-jelly` | Standalone Chrysaora model inspector with its own Leva panel for material tuning |
