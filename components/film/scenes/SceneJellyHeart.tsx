@@ -27,6 +27,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { SceneProps } from '../types';
 import { FRAGMENT_SHADER, VERTEX_SHADER } from '../shaders/membrane';
+import { useTweakRef } from '../TweakStore';
 
 // ---------------------------------------------------------------------------
 // Constants and pure helpers (testable without R3F)
@@ -72,6 +73,7 @@ export function computeHeartBeat(
 function Heart({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  const tweakRef = useTweakRef();
 
   useEffect(() => {
     if (matRef.current) matRef.current.fog = true;
@@ -81,9 +83,12 @@ function Heart({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
     if (!activeRef.current) return;
     if (!meshRef.current || !matRef.current) return;
     const t = clock.getElapsedTime();
-    const { scale, emissiveIntensity } = computeHeartBeat(t);
-    meshRef.current.scale.setScalar(scale);
-    matRef.current.emissiveIntensity = emissiveIntensity;
+    const { bpm, pulseScale, heartEmissiveBase, heartEmissiveRange } = tweakRef.current;
+    const period = 60 / bpm;
+    const beat = Math.sin((t * Math.PI * 2) / period);
+    const pulse = 0.5 + 0.5 * Math.pow(Math.max(0, beat), 2);
+    meshRef.current.scale.setScalar(1 + pulse * pulseScale);
+    matRef.current.emissiveIntensity = heartEmissiveBase + pulse * heartEmissiveRange;
   });
 
   return (
@@ -107,6 +112,7 @@ function Heart({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
 
 function Membrane({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
+  const tweakRef = useTweakRef();
 
   const uniforms = useMemo(
     () => ({
@@ -115,6 +121,8 @@ function Membrane({ activeRef }: { activeRef: React.MutableRefObject<boolean> })
       uColorBottom: { value: new THREE.Color('#c89678') },
       uVeinSpeed: { value: 0.05 },
       uFresnelPower: { value: 2.0 },
+      uAlphaInner: { value: 0.4 },
+      uAlphaEdge: { value: 0.7 },
     }),
     [],
   );
@@ -125,9 +133,13 @@ function Membrane({ activeRef }: { activeRef: React.MutableRefObject<boolean> })
 
   useFrame(({ clock }) => {
     if (!activeRef.current) return;
-    if (matRef.current?.uniforms?.uTime) {
-      matRef.current.uniforms.uTime.value = clock.getElapsedTime();
-    }
+    if (!matRef.current?.uniforms) return;
+    matRef.current.uniforms.uTime.value = clock.getElapsedTime();
+    // Live-update tweakable uniforms from TweakStore.
+    const { membraneFresnelPower, membraneAlphaInner, membraneAlphaEdge } = tweakRef.current;
+    matRef.current.uniforms.uFresnelPower.value = membraneFresnelPower;
+    matRef.current.uniforms.uAlphaInner.value = membraneAlphaInner;
+    matRef.current.uniforms.uAlphaEdge.value = membraneAlphaEdge;
   });
 
   return (

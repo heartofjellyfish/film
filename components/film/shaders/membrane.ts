@@ -43,6 +43,8 @@ export const FRAGMENT_SHADER = /* glsl */ `
   uniform vec3  uColorBottom;
   uniform float uVeinSpeed;
   uniform float uFresnelPower;
+  uniform float uAlphaInner;
+  uniform float uAlphaEdge;
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -84,7 +86,7 @@ export const FRAGMENT_SHADER = /* glsl */ `
     float veins = fbm(veinUv) * 0.45 + 0.55;
 
     vec3 col = base * veins + vec3(1.0, 0.85, 0.65) * fresnel * 0.35;
-    float alpha = mix(0.4, 0.7, fresnel);
+    float alpha = mix(uAlphaInner, uAlphaEdge, fresnel);
 
     gl_FragColor = vec4(col, alpha);
   }

@@ -33,6 +33,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import dynamic from 'next/dynamic';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
 import type { MutableRefObject } from 'react';
@@ -45,10 +46,18 @@ import { ModeMachineProvider, useModeMachine } from './useModeMachine';
 import { getAllAnchors } from './scenes/registry';
 import { Scenes } from './scenes/index';
 import { Overlay } from './Overlay';
-import { TweakPanel } from './TweakPanel';
+import { AudioProvider } from './AudioContext';
+import { TweakProvider } from './TweakStore';
 import { createAudioSubsystem, type AudioSubsystem } from './audio/AudioManager';
 import { TRACKS } from './audio/manifest';
 import type { EnvCapabilities, SceneEvent, TrackSlug } from './types';
+
+// Dynamic import: leva never enters the main bundle unless ?tweak=1.
+// ssr:false because Leva uses browser APIs (window, document).
+const TweakPanel = dynamic(
+  () => import('./TweakPanel').then((m) => m.TweakPanel),
+  { ssr: false },
+);
 
 // ---------------------------------------------------------------------------
 // URL query parser — pure function, unit-testable
@@ -285,12 +294,18 @@ export function FilmRoot() {
       <div style={{ minHeight: '400vh' }} aria-hidden="true" />
 
       <ModeMachineProvider machine={machine!}>
-        <FilmInner
-          query={query}
-          audio={audio!}
-          showCeremony={showCeremony}
-          onStart={handleStart}
-        />
+        {/* AudioProvider: makes AudioSubsystem available to TweakPanel via useAudioSubsystem() */}
+        <AudioProvider value={audio!}>
+          {/* TweakProvider: makes TweakValues ref available to Scenes and TweakPanel */}
+          <TweakProvider>
+            <FilmInner
+              query={query}
+              audio={audio!}
+              showCeremony={showCeremony}
+              onStart={handleStart}
+            />
+          </TweakProvider>
+        </AudioProvider>
       </ModeMachineProvider>
     </>
   );

@@ -27,6 +27,8 @@ uniform vec3  uColorTop;
 uniform vec3  uColorBottom;
 uniform float uVeinSpeed;
 uniform float uFresnelPower;
+uniform float uAlphaInner;
+uniform float uAlphaEdge;
 
 // ---- cheap value-noise (no derivatives, no textures) ----------------------
 float hash(vec2 p) {
@@ -75,9 +77,9 @@ void main() {
   // Combine: warm base × vein modulation, plus fresnel rim glow.
   vec3 col = base * veins + vec3(1.0, 0.85, 0.65) * fresnel * 0.35;
 
-  // Alpha: thin at centre (0.4), denser at edges (0.7). Same lerp factor as
-  // the fresnel so they line up visually.
-  float alpha = mix(0.4, 0.7, fresnel);
+  // Alpha: thin at centre (uAlphaInner), denser at edges (uAlphaEdge). Same
+  // lerp factor as the fresnel so they line up visually.
+  float alpha = mix(uAlphaInner, uAlphaEdge, fresnel);
 
   gl_FragColor = vec4(col, alpha);
 }
