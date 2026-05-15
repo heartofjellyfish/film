@@ -18,6 +18,10 @@ export default defineConfig({
         '**/TweakPanel.tsx',
         '**/shaders/**',
         '**/__fixtures__/**',
+        // useModeMachine is React Context DI wiring — explicitly exempt per task spec
+        '**/useModeMachine.tsx',
+        // types.ts is all TypeScript type declarations, no runtime code
+        '**/types.ts',
       ],
       thresholds: { lines: 80, functions: 80, branches: 80 },
     },
