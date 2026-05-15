@@ -15,13 +15,26 @@
  * ===========================================================================
  * RED-LINE PIT (Bloom + transmission):
  * The membrane uses a CUSTOM ShaderMaterial — NOT MeshPhysicalMaterial.transmission.
- * Only the Heart mesh is wrapped in <Selection><Select enabled> and fed to
- * <Bloom selectionLayer={1}>. The membrane lives outside the <Select> so it
- * never enters the bloom input. See film/CLAUDE.md "Bloom + transmission —
- * THE PIT" and detailed design §6.10.
+ * No transmission anywhere in this scene, so the NaN/Inf-at-mesh-edges class
+ * of bloom hazards described in film/CLAUDE.md does NOT apply here.
+ *
+ * Bloom is isolated to the Heart by LUMINANCE, not by <Selection>. The Heart's
+ * emissive output (#ffd494 × intensity 1.5–3.0) reaches HDR luminance ≳1.0;
+ * the membrane composited over the outer sea peaks around ~0.65. A
+ * `luminanceThreshold` of 1.0 cleanly catches the heart and rejects everything
+ * else without needing a selection layer.
+ *
+ * Why no <Selection>/<Select>: @react-three/postprocessing@3.0.4's <Select>
+ * has a useEffect with `selectionContextValue` in its deps that also calls
+ * `select(...)` (setState) inside the same effect. Under React 19 this is an
+ * infinite render loop (cleanup removes the mesh from `selected`, the new
+ * effect re-adds it, the context value churns every render). The selection-
+ * layer pattern documented in CLAUDE.md is the correct approach for scenes
+ * that DO use transmission; this scene does not, so luminance gating is
+ * sufficient and avoids the loop entirely.
  * ===========================================================================
  */
-import { Bloom, EffectComposer, Select, Selection } from '@react-three/postprocessing';
+import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -296,30 +309,29 @@ export function SceneJellyHeart({ depthRef }: SceneProps) {
   /*
    * Composition shape:
    *
-   *   <group>                                ← always mounted; hosts the gate
-   *     <ActiveWindowGate />                ← toggles `visible` on both
-   *                                            inner groups
+   *   <group>                              ← always mounted; hosts the gate
+   *     <ActiveWindowGate />              ← toggles `visible` on both
+   *                                          inner groups every frame
    *
-   *     <group visible={false}>             ← non-bloom scene contents
+   *     <group visible={false}>           ← non-bloom scene contents
    *       <Membrane /> + outer sea +
    *       lights + breathing camera
    *     </group>
    *
-   *     <EffectComposer>                    ← post-processing pipeline;
-   *       <Selection>                          stays mounted so Bloom keeps
-   *         <Select enabled>                   running across the canvas
-   *           <group visible={false}>       ← Heart group is also gated
-   *             <Heart />
-   *           </group>
-   *         </Select>
-   *         <Bloom selectionLayer=1 />      ← only the Select'd Heart feeds
-   *       </Selection>                         the bloom input
-   *     </EffectComposer>
+   *     <group visible={false}>           ← Heart group, also gated
+   *       <Heart />
+   *     </group>
    *
-   * When this scene is out of window, both visible-flagged groups are
-   * hidden, the Heart isn't rendered at all, and Bloom has nothing to bloom.
-   * Prototype only registers two scenes so a single EffectComposer here is
-   * fine; if a second scene later needs bloom we'll lift this up to FilmRoot.
+   *     <EffectComposer>                  ← post-processing pipeline;
+   *       <Bloom luminanceThreshold=1 />     filters by luminance only —
+   *     </EffectComposer>                    no <Selection> needed (see
+   *                                          file-header note for why)
+   *
+   * When this scene is out of window, both visible-flagged groups are hidden;
+   * the Heart isn't rendered to the framebuffer, so Bloom has nothing above
+   * its luminance threshold and produces no glow. Prototype only registers
+   * two scenes so a single EffectComposer here is fine; if a second scene
+   * later needs bloom we'll lift this up to FilmRoot.
    */
   return (
     <group>
@@ -346,29 +358,27 @@ export function SceneJellyHeart({ depthRef }: SceneProps) {
         {/* Outer sea is rendered FIRST so the membrane can blend over it. */}
         <OuterSea activeRef={activeRef} />
 
-        {/* Membrane goes OUTSIDE the Selection. RED LINE: NEVER feed this to Bloom. */}
+        {/* Membrane luminance peaks ~0.65 (alpha-blended over outer sea), below
+            the bloom threshold of 1.0, so it stays out of the glow by physics. */}
         <Membrane activeRef={activeRef} />
       </group>
 
-      {/* Only the Heart goes inside <Selection>/<Select> and feeds <Bloom>.
-          The Bloom component is a sibling of <Select> inside <Selection>; this
-          is the documented @react-three/postprocessing pattern. */}
+      <group ref={heartGroupRef} visible={false}>
+        <Heart activeRef={activeRef} />
+      </group>
+
       <EffectComposer multisampling={0}>
-        <Selection>
-          <Select enabled>
-            <group ref={heartGroupRef} visible={false}>
-              <Heart activeRef={activeRef} />
-            </group>
-          </Select>
-          <Bloom
-            // Only emissive >0.6 in linear space leaks into the glow — guards
-            // against accidental bloom on the dark scene.
-            luminanceThreshold={0.6}
-            luminanceSmoothing={0.2}
-            intensity={1.0}
-            mipmapBlur
-          />
-        </Selection>
+        <Bloom
+          // 1.0 in linear/HDR space — only the Heart's emissive output
+          // (#ffd494 × intensity 1.5–3.0) clears this. Membrane and outer
+          // sea fall under by composite luminance, so the heart glow is
+          // isolated without needing a selection layer. See file-header
+          // for why <Selection>/<Select> were removed.
+          luminanceThreshold={1.0}
+          luminanceSmoothing={0.2}
+          intensity={1.0}
+          mipmapBlur
+        />
       </EffectComposer>
     </group>
   );
