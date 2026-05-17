@@ -37,7 +37,7 @@
 // NOTE: camera breathing is now handled by CameraController (Gap B).
 // This scene only updates geometry/material uniforms inside its depth window.
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { SceneProps } from '../types';
@@ -301,16 +301,35 @@ function ActiveWindowGate({
   groupRef: React.MutableRefObject<THREE.Group | null>;
   secondaryGroupRef?: React.MutableRefObject<THREE.Group | null>;
 }) {
+  const { scene } = useThree();
+
+  /* R3F pattern: scene.fog / scene.background are mutated each frame to reset
+     stale state left over by SceneTransition. Without this, SceneTransition's
+     last write (density=0.04, bg=#4a3a58 violet) poisons the vi_heart frame
+     when reached via auto-tween — the warm Rothko OuterSea gets washed out and
+     center pixels show as solid violet. Inside the membrane we want NO fog
+     (you're inside an organism, not in murky water) and a dark warm bg matching
+     OuterSea's bottom so any gap reads as continuous depth. */
+  /* eslint-disable react-hooks/immutability */
   useFrame(() => {
     const d = depthRef.current;
     const inside =
       d >= SCENE_JELLY_HEART_DEPTH_RANGE[0] && d <= SCENE_JELLY_HEART_DEPTH_RANGE[1];
     activeRef.current = inside;
+
+    if (inside) {
+      // Reset SceneTransition leftover. Membrane handles atmospheric tint itself.
+      if (scene.fog instanceof THREE.FogExp2) scene.fog.density = 0;
+      if (!(scene.background instanceof THREE.Color)) scene.background = new THREE.Color();
+      (scene.background as THREE.Color).setHex(0x3d2818); // matches OuterSea bottom
+    }
+
     // Mutating Object3D.visible here is the documented R3F idiom for frame-
     // level visibility gating; refs are pre-allocated by the parent group.
     if (groupRef.current) groupRef.current.visible = inside;
     if (secondaryGroupRef?.current) secondaryGroupRef.current.visible = inside;
   });
+  /* eslint-enable react-hooks/immutability */
   return null;
 }
 

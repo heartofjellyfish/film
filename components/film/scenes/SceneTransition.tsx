@@ -35,6 +35,15 @@ const CHRYSAORA_URL = '/models/chrysaora/model.glb';
 
 export const SCENE_TRANSITION_DEPTH_RANGE: readonly [number, number] = [0.1, 0.5];
 
+/**
+ * Pure predicate — mirrors the ActiveWindowGate useFrame condition exactly.
+ * Exported for unit tests. The upper bound is EXCLUSIVE so SceneJellyHeart
+ * (which opens at d >= 0.50, inclusive) does not overlap.
+ */
+export function isInsideTransitionWindow(d: number): boolean {
+  return d >= SCENE_TRANSITION_DEPTH_RANGE[0] && d < SCENE_TRANSITION_DEPTH_RANGE[1];
+}
+
 const NUM_PARTICLES = 300;
 const PARTICLE_BOX_SIZE = 30;
 
@@ -257,8 +266,13 @@ function ActiveWindowGate({
 }) {
   useFrame(() => {
     const d = depthRef.current;
+    // Exclusive upper bound: SceneJellyHeart opens at d >= 0.50.
+    // Using d <= 0.50 (inclusive) would put BOTH scenes "inside" simultaneously
+    // on the boundary frame, letting TransitionFog overwrite SceneJellyHeart's
+    // fog/bg reset (which runs earlier in the fiber tree). Strict < eliminates
+    // the overlap so the transition owns [0.10, 0.50) and JellyHeart owns [0.50, 0.85].
     const inside =
-      d >= SCENE_TRANSITION_DEPTH_RANGE[0] && d <= SCENE_TRANSITION_DEPTH_RANGE[1];
+      d >= SCENE_TRANSITION_DEPTH_RANGE[0] && d < SCENE_TRANSITION_DEPTH_RANGE[1];
     activeRef.current = inside;
     // Mutating Object3D.visible here is the documented R3F idiom.
     if (groupRef.current) groupRef.current.visible = inside;
