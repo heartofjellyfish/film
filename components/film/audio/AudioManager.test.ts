@@ -84,27 +84,45 @@ function makeMockFetch(ok = true) {
 // ---------------------------------------------------------------------------
 
 describe('chooseUrl (pure helper)', () => {
-  it('returns full URL for listen mode when full is present', () => {
-    const url = chooseUrl('i_sea_rising', 'listen', TEST_MANIFEST);
-    expect(url).toBe('/audio/tracks/i_sea_rising.mp3');
+  // Current rule (Qi 2026-05-17): full takes precedence whenever it exists,
+  // regardless of mode. This supports the single-soundtrack design (every scene
+  // uses the same mp3 and we want it to play even in auto mode). highlight is
+  // a scroll-mode fallback only when full is absent.
+
+  it('returns full URL whenever full is present (any mode)', () => {
+    expect(chooseUrl('i_sea_rising', 'listen', TEST_MANIFEST)).toBe('/audio/tracks/i_sea_rising.mp3');
+    expect(chooseUrl('i_sea_rising', 'scroll', TEST_MANIFEST)).toBe('/audio/tracks/i_sea_rising.mp3');
+    expect(chooseUrl('i_sea_rising', 'auto', TEST_MANIFEST)).toBe('/audio/tracks/i_sea_rising.mp3');
   });
 
-  it('returns highlight URL for scroll mode when highlight is present', () => {
-    const url = chooseUrl('i_sea_rising', 'scroll', TEST_MANIFEST);
-    expect(url).toBe('/audio/tracks/i_sea_rising_30s.mp3');
+  it('returns highlight URL for scroll mode when highlight is present and full is absent', () => {
+    const manifest: TrackManifest = {
+      i_sea_rising: {
+        highlight: '/audio/tracks/i_sea_rising_30s.mp3',
+        placeholder: '/audio/placeholder/ambient_ocean.wav',
+      },
+    };
+    expect(chooseUrl('i_sea_rising', 'scroll', manifest)).toBe('/audio/tracks/i_sea_rising_30s.mp3');
   });
 
-  it('returns placeholder URL for auto mode', () => {
-    const url = chooseUrl('i_sea_rising', 'auto', TEST_MANIFEST);
-    expect(url).toBe('/audio/placeholder/ambient_ocean.wav');
-  });
-
-  it('returns placeholder when full is absent in listen mode', () => {
+  it('returns placeholder when only placeholder is present', () => {
     const manifest: TrackManifest = {
       i_sea_rising: { placeholder: '/audio/placeholder/ambient_ocean.wav' },
     };
-    const url = chooseUrl('i_sea_rising', 'listen', manifest);
-    expect(url).toBe('/audio/placeholder/ambient_ocean.wav');
+    expect(chooseUrl('i_sea_rising', 'listen', manifest)).toBe('/audio/placeholder/ambient_ocean.wav');
+    expect(chooseUrl('i_sea_rising', 'scroll', manifest)).toBe('/audio/placeholder/ambient_ocean.wav');
+    expect(chooseUrl('i_sea_rising', 'auto', manifest)).toBe('/audio/placeholder/ambient_ocean.wav');
+  });
+
+  it('returns placeholder in auto mode when only highlight+placeholder are present (no full)', () => {
+    const manifest: TrackManifest = {
+      i_sea_rising: {
+        highlight: '/audio/tracks/i_sea_rising_30s.mp3',
+        placeholder: '/audio/placeholder/ambient_ocean.wav',
+      },
+    };
+    // auto mode + no full → falls through to placeholder (highlight is scroll-only)
+    expect(chooseUrl('i_sea_rising', 'auto', manifest)).toBe('/audio/placeholder/ambient_ocean.wav');
   });
 });
 
@@ -544,31 +562,61 @@ describe('createAudioSubsystem', () => {
     expect(mockCtx.createBiquadFilter).not.toHaveBeenCalled();
   });
 
-  // ── mode-changed event triggers re-switch ────────────────────────────────
-  it('mode-changed event re-chooses URL for current slug', async () => {
-    const machine = createMockModeMachine({ mode: 'scroll' });
-    const audio = createAudioSubsystem({
-      modeMachine: machine,
+  // ── mode-changed: same-URL → no re-fetch (dedup); different-URL → re-fetch ─
+  it('mode-changed re-fetches only when the resolved URL changes', async () => {
+    // With "full preferred whenever present" + single-soundtrack manifest, mode
+    // change does NOT alter the resolved URL → switchTo dedupes, no re-fetch.
+    // We exercise the dedup path here using a manifest where every entry's full
+    // is the same URL across modes, then exercise the re-fetch path by removing
+    // full so scroll/listen modes resolve differently.
+
+    // ── (a) Dedup path: full present → all modes resolve to same URL ────────
+    const dedupManifest: TrackManifest = {
+      i_sea_rising: {
+        full: '/audio/tracks/song.mp3',
+        highlight: '/audio/tracks/song.mp3',
+        placeholder: '/audio/placeholder/ambient_ocean.wav',
+      },
+    };
+    const m1 = createMockModeMachine({ mode: 'scroll' });
+    const a1 = createAudioSubsystem({
+      modeMachine: m1,
       envProbe: { isMobile: false, autoplayBlocked: false },
-      manifest: TEST_MANIFEST,
+      manifest: dedupManifest,
       reportAutoplayBlocked,
     });
-
-    await audio.start();
-
-    // Establish current slug via anchor-entered
-    machine.fire({ type: 'anchor-entered', slug: 'i_sea_rising', anchor: 0.05 });
+    await a1.start();
+    m1.fire({ type: 'anchor-entered', slug: 'i_sea_rising', anchor: 0.05 });
     await vi.runAllTimersAsync();
-
-    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
-    const callCountAfterAnchor = fetchMock.mock.calls.length;
-
-    // Now switch to listen mode — should re-fetch with full URL
-    machine.modeRef.current = 'listen';
-    machine.fire({ type: 'mode-changed', from: 'scroll', to: 'listen' });
+    const f1 = global.fetch as ReturnType<typeof vi.fn>;
+    const before = f1.mock.calls.length;
+    m1.modeRef.current = 'listen';
+    m1.fire({ type: 'mode-changed', from: 'scroll', to: 'listen' });
     await vi.runAllTimersAsync();
+    expect(f1.mock.calls.length).toBe(before); // no re-fetch — dedup hit
 
-    // Should have fetched again (new URL due to mode change)
-    expect(fetchMock.mock.calls.length).toBeGreaterThan(callCountAfterAnchor);
+    // ── (b) Re-fetch path: full absent, scroll uses highlight, listen falls
+    //         through to placeholder → URLs differ across modes
+    const splitManifest: TrackManifest = {
+      i_sea_rising: {
+        highlight: '/audio/tracks/song_30s.mp3',
+        placeholder: '/audio/placeholder/ambient_ocean.wav',
+      },
+    };
+    const m2 = createMockModeMachine({ mode: 'scroll' });
+    const a2 = createAudioSubsystem({
+      modeMachine: m2,
+      envProbe: { isMobile: false, autoplayBlocked: false },
+      manifest: splitManifest,
+      reportAutoplayBlocked,
+    });
+    await a2.start();
+    m2.fire({ type: 'anchor-entered', slug: 'i_sea_rising', anchor: 0.05 });
+    await vi.runAllTimersAsync();
+    const before2 = f1.mock.calls.length;
+    m2.modeRef.current = 'listen'; // listen + no full → placeholder URL (different)
+    m2.fire({ type: 'mode-changed', from: 'scroll', to: 'listen' });
+    await vi.runAllTimersAsync();
+    expect(f1.mock.calls.length).toBeGreaterThan(before2);
   });
 });

@@ -36,5 +36,8 @@ yarn-error.log*
 # Test coverage output
 coverage/
 
+# Real track mp3s — never commit (use placeholders in repo; real masters via CDN)
+public/audio/tracks/*.mp3
+
 # Vercel
 .vercel

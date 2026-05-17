@@ -47,9 +47,20 @@ export interface AudioSubsystem {
 /**
  * Pure function — exported so it can be unit-tested independently.
  *
- * listen  + entry.full present    → full URL
- * scroll  + entry.highlight present → highlight URL
- * otherwise (auto, or missing optional URL)  → placeholder
+ * Resolution order:
+ *   full present                       → full  (preferred whenever a real
+ *                                                track exists — supports the
+ *                                                single-soundtrack design where
+ *                                                every scene uses the same mp3
+ *                                                and we want it to play even in
+ *                                                auto mode)
+ *   scroll + highlight present         → highlight  (if no full)
+ *   otherwise                          → placeholder
+ *
+ * Originally the rule was "listen → full, scroll → highlight, auto → placeholder"
+ * but with one soundtrack across all scenes (Qi 2026-05-17) we want the master
+ * mp3 in auto mode too. AudioManager.switchTo dedupes by URL so per-scene
+ * anchor-entered events don't restart playback — music stays continuous.
  */
 export function chooseUrl(
   slug: TrackSlug,
@@ -62,7 +73,7 @@ export function chooseUrl(
     console.warn(`[AudioManager] no manifest entry for slug "${slug}"`);
     return '';
   }
-  if (mode === 'listen' && entry.full) return entry.full;
+  if (entry.full) return entry.full;
   if (mode === 'scroll' && entry.highlight) return entry.highlight;
   return entry.placeholder;
 }
@@ -90,6 +101,12 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
   // -- Current playback node --
   let currentNode: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
   let currentSlug: TrackSlug | null = null;
+  // -- Currently playing URL (for switchTo dedup) --
+  // When the soundtrack is used across all scenes (single-track design — Qi
+  // 2026-05-17), the resolved URL stays the same as anchor-entered fires for
+  // different slugs. Dedup prevents re-fetching and restarting playback so
+  // music plays continuously across scene transitions.
+  let currentUrl: string | null = null;
 
   // -- In-flight load cancellation --
   let pendingCrossfade: AbortController | null = null;
@@ -156,6 +173,17 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
   async function switchTo(slug: TrackSlug): Promise<void> {
     if (!ctx) return; // autoplay blocked or not started
 
+    const url = chooseUrl(slug, modeMachine.modeRef.current, manifest);
+    if (!url) return;
+
+    // Dedup: if the resolved URL is already playing, just retag the slug and
+    // leave playback running. This is what makes a single-track soundtrack
+    // (every slug → same URL) feel continuous across scene transitions.
+    if (url === currentUrl && currentNode) {
+      currentSlug = slug;
+      return;
+    }
+
     // Abort any in-flight load from a previous switchTo call.
     pendingCrossfade?.abort();
     const controller = new AbortController();
@@ -163,9 +191,6 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
 
     // Set currentSlug before loadBuffer so fallback can find the entry.
     currentSlug = slug;
-
-    const url = chooseUrl(slug, modeMachine.modeRef.current, manifest);
-    if (!url) return;
 
     let buffer: AudioBuffer;
     try {
@@ -187,7 +212,10 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.loop = isPlaceholderUrl(url); // placeholder → loop; real tracks → play once
+    // Loop everything — placeholder ambient WAVs are short loops by design,
+    // and the single soundtrack used across all scenes (Qi 2026-05-17) should
+    // also loop if the prototype experience outlasts the track length.
+    source.loop = true;
 
     // Connect into signal chain.
     const chainEntry = lowPass ?? masterGain!;
@@ -209,6 +237,7 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
     }
 
     currentNode = { source, gain: newGain };
+    currentUrl = url;
   }
 
   // ---------------------------------------------------------------------------
