@@ -37,6 +37,12 @@ export interface ModeMachine {
   tick(now: number): void;
   /** Detach event listeners (called by React Provider on unmount). */
   dispose(): void;
+  /**
+   * Called by EndCardWatcher (inside Canvas) once when depthRef crosses 0.85.
+   * Fires a 'depth-end-card' event so Overlay can show EndCard early (Gap A).
+   * RED LINE: this does NOT write depthRef.current.
+   */
+  fireEndCard(): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +201,11 @@ export function createModeMachine(deps: ModeMachineDeps): ModeMachine {
   // ---------------------------------------------------------------------------
 
   function start(): void {
+    // Gap C: attach scroll listener FIRST, before any early return.
+    // Without this, ?focus= routes enter listen mode but never attach the
+    // scroll listener, so the user cannot scroll out of the focused view.
+    attachScrollListener();
+
     if (initialFocus) {
       const focusAnchor = anchors.find((a) => a.slug === initialFocus);
       if (focusAnchor) {
@@ -210,7 +221,6 @@ export function createModeMachine(deps: ModeMachineDeps): ModeMachine {
 
     modeRef.current = 'auto';
     autoStartT = performance.now();
-    attachScrollListener();
   }
 
   function reset(): void {
@@ -281,6 +291,15 @@ export function createModeMachine(deps: ModeMachineDeps): ModeMachine {
     subscribers.clear();
   }
 
+  // -- endCardFired guard: ensure depth-end-card fires at most once --
+  let endCardFired = false;
+
+  function fireEndCard(): void {
+    if (endCardFired) return;
+    endCardFired = true;
+    notify({ type: 'depth-end-card' });
+  }
+
   return {
     depthRef,
     modeRef,
@@ -289,5 +308,6 @@ export function createModeMachine(deps: ModeMachineDeps): ModeMachine {
     subscribe,
     tick,
     dispose,
+    fireEndCard,
   };
 }

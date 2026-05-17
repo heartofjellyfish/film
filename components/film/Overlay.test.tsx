@@ -110,4 +110,36 @@ describe('Overlay', () => {
 
     expect(screen.getByTestId('end-card')).toBeTruthy();
   });
+
+  it('6. depth-end-card event (d>=0.85 via EndCardWatcher) → EndCard becomes visible', async () => {
+    // Gap A: EndCardWatcher fires 'depth-end-card' via machine.fireEndCard() when
+    // depthRef.current crosses 0.85. Overlay subscribes and shows the EndCard.
+    render(<Overlay />);
+
+    expect(screen.queryByTestId('end-card')).toBeNull();
+
+    await act(async () => {
+      mockMachine.fire({ type: 'depth-end-card' });
+    });
+
+    expect(screen.getByTestId('end-card')).toBeTruthy();
+  });
+
+  it('7. depth-end-card followed by auto-completed → EndCard shown only once (no double-render)', async () => {
+    render(<Overlay />);
+
+    await act(async () => {
+      mockMachine.fire({ type: 'depth-end-card' });
+    });
+
+    expect(screen.getByTestId('end-card')).toBeTruthy();
+
+    // auto-completed should be a no-op since EndCard is already showing
+    await act(async () => {
+      mockMachine.fire({ type: 'auto-completed' });
+    });
+
+    // Still just one EndCard (setShowEndCard(true) is idempotent)
+    expect(screen.getAllByTestId('end-card')).toHaveLength(1);
+  });
 });

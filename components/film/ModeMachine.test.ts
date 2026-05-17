@@ -433,6 +433,28 @@ describe('ModeMachine', () => {
     expect(idxEntered).toBeGreaterThan(idxExited);
   });
 
+  // Gap C: ?focus= path must attach scroll listener so user can scroll out
+  it('initialFocus start() attaches scroll listener — scroll exits listen mode', () => {
+    const m = createModeMachine(makeDeps({ initialFocus: 'vi_heart' }));
+    m.start();
+
+    // Should be in listen mode with depthRef locked at anchor
+    expect(m.modeRef.current).toBe('listen');
+    expect(m.depthRef.current).toBeCloseTo(0.55, 5);
+
+    // Simulate scrolling ≥ 5px from the listen start position
+    setScroll(600, 1000, 0); // 600 - 550 = 50px ≥ 5 EXIT_LISTEN_SCROLL_PX
+    window.dispatchEvent(new Event('scroll'));
+
+    // Should have transitioned to scroll mode
+    expect(m.modeRef.current).toBe('scroll');
+
+    // Tick should now drive depthRef from scrollY
+    vi.advanceTimersByTime(50);
+    m.tick(performance.now());
+    expect(m.depthRef.current).toBeCloseTo(0.6, 1);
+  });
+
   it('dispose() cleans up scroll listener', () => {
     const m = createModeMachine(makeDeps());
     m.start();

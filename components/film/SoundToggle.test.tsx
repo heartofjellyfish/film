@@ -23,29 +23,41 @@ describe('SoundToggle', () => {
     localStorage.clear();
   });
 
-  it('shows muted icon when localStorage has no value (default false)', () => {
+  it('shows sound-on icon when localStorage has no value (default ON — Gap E)', () => {
+    // First visit: no key → default enabled=true → 🔊 icon
+    render(<SoundToggle />);
+    const btn = screen.getByRole('button', { name: /toggle sound/i });
+    expect(btn.textContent).toBe('🔊');
+    expect(btn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('clicking once disables sound: localStorage = "false" and calls setMuted(true)', () => {
+    // Start enabled (default), click to mute
+    render(<SoundToggle />);
+    const btn = screen.getByRole('button', { name: /toggle sound/i });
+    fireEvent.click(btn);
+    expect(localStorage.getItem('film-sound-enabled')).toBe('false');
+    expect(mockSetMuted).toHaveBeenCalledWith(true);
+    expect(btn.textContent).toBe('🔇');
+  });
+
+  it('clicking twice restores sound: localStorage = "true" and calls setMuted(false)', () => {
+    // Start enabled, disable, re-enable
+    render(<SoundToggle />);
+    const btn = screen.getByRole('button', { name: /toggle sound/i });
+    fireEvent.click(btn); // mute
+    fireEvent.click(btn); // unmute
+    expect(localStorage.getItem('film-sound-enabled')).toBe('true');
+    expect(mockSetMuted).toHaveBeenLastCalledWith(false);
+    expect(btn.textContent).toBe('🔊');
+  });
+
+  it('respects stored "false" in localStorage — user previously muted', () => {
+    // Simulates returning visitor who had muted before
+    localStorage.setItem('film-sound-enabled', 'false');
     render(<SoundToggle />);
     const btn = screen.getByRole('button', { name: /toggle sound/i });
     expect(btn.textContent).toBe('🔇');
     expect(btn.getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('clicking once sets localStorage to "true" and calls setMuted(false)', () => {
-    render(<SoundToggle />);
-    const btn = screen.getByRole('button', { name: /toggle sound/i });
-    fireEvent.click(btn);
-    expect(localStorage.getItem('film-sound-enabled')).toBe('true');
-    expect(mockSetMuted).toHaveBeenCalledWith(false);
-    expect(btn.textContent).toBe('🔊');
-  });
-
-  it('clicking twice sets localStorage to "false" and calls setMuted(true)', () => {
-    render(<SoundToggle />);
-    const btn = screen.getByRole('button', { name: /toggle sound/i });
-    fireEvent.click(btn); // enable
-    fireEvent.click(btn); // disable again
-    expect(localStorage.getItem('film-sound-enabled')).toBe('false');
-    expect(mockSetMuted).toHaveBeenLastCalledWith(true);
-    expect(btn.textContent).toBe('🔇');
   });
 });

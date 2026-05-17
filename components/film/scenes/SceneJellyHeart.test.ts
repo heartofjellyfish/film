@@ -14,6 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeHeartBeat,
+  computeFadeOut,
   HEART_BPM_DEFAULT,
   SCENE_JELLY_HEART_DEPTH_RANGE,
 } from './SceneJellyHeart';
@@ -97,14 +98,57 @@ describe('computeHeartBeat', () => {
 });
 
 describe('SCENE_JELLY_HEART_DEPTH_RANGE', () => {
-  it('covers [0.50, 0.65] — vi_heart anchor at 0.55 ± 0.05–0.10 corridor', () => {
+  it('covers [0.50, 0.85] — extended for full fade-out window (spec Gap F)', () => {
+    // Anchor remains at 0.55; range extended so d=0.65-0.85 is used for fade-out.
     expect(SCENE_JELLY_HEART_DEPTH_RANGE[0]).toBeCloseTo(0.5, 5);
-    expect(SCENE_JELLY_HEART_DEPTH_RANGE[1]).toBeCloseTo(0.65, 5);
+    expect(SCENE_JELLY_HEART_DEPTH_RANGE[1]).toBeCloseTo(0.85, 5);
   });
 });
 
 describe('HEART_BPM_DEFAULT', () => {
   it('matches the prototype-default 75 BPM', () => {
     expect(HEART_BPM_DEFAULT).toBe(75);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeFadeOut — spec Gap F (depth range extended to 0.85 with fade-out)
+// ---------------------------------------------------------------------------
+
+describe('computeFadeOut', () => {
+  it('d=0.50 → 1.0 (fully visible, before fade starts)', () => {
+    expect(computeFadeOut(0.50)).toBeCloseTo(1.0, 5);
+  });
+
+  it('d=0.65 → 1.0 (still fully visible, fade starts at 0.70)', () => {
+    expect(computeFadeOut(0.65)).toBeCloseTo(1.0, 5);
+  });
+
+  it('d=0.70 → 1.0 (fade start boundary)', () => {
+    expect(computeFadeOut(0.70)).toBeCloseTo(1.0, 5);
+  });
+
+  it('d=0.775 → ≈0.5 (smoothstep midpoint at (0.70+0.85)/2)', () => {
+    // t = (0.775 - 0.70) / (0.85 - 0.70) = 0.075/0.15 = 0.5
+    // smoothstep(0.5) = 0.5·0.5·(3-2·0.5) = 0.25 · 2 = 0.5
+    // fadeOut = 1 - 0.5 = 0.5
+    expect(computeFadeOut(0.775)).toBeCloseTo(0.5, 3);
+  });
+
+  it('d=0.85 → 0.0 (fully transparent at end of range)', () => {
+    expect(computeFadeOut(0.85)).toBeCloseTo(0.0, 5);
+  });
+
+  it('d=0.90 → 0.0 (clamped — past the fade end)', () => {
+    expect(computeFadeOut(0.90)).toBeCloseTo(0.0, 5);
+  });
+
+  it('stays in [0, 1] over the full d range [0, 1]', () => {
+    for (let i = 0; i <= 100; i++) {
+      const d = i / 100;
+      const fade = computeFadeOut(d);
+      expect(fade).toBeGreaterThanOrEqual(0 - 1e-9);
+      expect(fade).toBeLessThanOrEqual(1 + 1e-9);
+    }
   });
 });

@@ -424,7 +424,7 @@ describe('createAudioSubsystem', () => {
     expect(status.volume).toBe(0);
   });
 
-  it('getStatus returns current slug after anchor-entered and volume 0 after start (muted by default)', async () => {
+  it('getStatus returns current slug after anchor-entered and volume 0.8 after start (default ON — Gap E)', async () => {
     const machine = createMockModeMachine({ mode: 'auto' });
     const audio = createAudioSubsystem({
       modeMachine: machine,
@@ -440,8 +440,10 @@ describe('createAudioSubsystem', () => {
 
     const status = audio.getStatus();
     expect(status.current).toBe('i_sea_rising');
-    expect(status.volume).toBe(0); // muted by default — SoundToggle ramps to 0.8 on unmute
-    expect(status.muted).toBe(true);
+    // Default: NOT muted (spec Gap E — sound on by default).
+    // masterGain.gain.value is set to 0.8 in start().
+    expect(status.volume).toBe(0.8);
+    expect(status.muted).toBe(false);
   });
 
   // ── setMuted ──────────────────────────────────────────────────────────────

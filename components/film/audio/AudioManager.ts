@@ -101,7 +101,10 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
   let unsubscribe: (() => void) | null = null;
 
   // -- Mute state --
-  let muted = true; // default muted
+  // Default: NOT muted (spec §3.7 T5 — audio starts on entry click).
+  // SoundToggle reads localStorage; if user previously muted it will call
+  // setMuted(true) on mount before the first frame renders.
+  let muted = false;
 
   // ---------------------------------------------------------------------------
   // Buffer loading
@@ -237,7 +240,7 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
       await ctx.resume(); // Must be called in user-gesture stack.
 
       masterGain = ctx.createGain();
-      masterGain.gain.value = 0; // default muted; SoundToggle ramps to 0.8 when user unmutes
+      masterGain.gain.value = 0.8; // default audible; SoundToggle ramps to 0 if user mutes
 
       if (!envProbe.isMobile) {
         // Desktop: include lowPass in the signal chain.

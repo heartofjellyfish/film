@@ -34,8 +34,10 @@
  * sufficient and avoids the loop entirely.
  * ===========================================================================
  */
+// NOTE: camera breathing is now handled by CameraController (Gap B).
+// This scene only updates geometry/material uniforms inside its depth window.
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { SceneProps } from '../types';
@@ -46,8 +48,8 @@ import { useTweakRef } from '../TweakStore';
 // Constants and pure helpers (testable without R3F)
 // ---------------------------------------------------------------------------
 
-/** Depth window in which this scene is active. */
-export const SCENE_JELLY_HEART_DEPTH_RANGE: readonly [number, number] = [0.5, 0.65];
+/** Depth window in which this scene is active (extended to 0.85 — spec Gap F). */
+export const SCENE_JELLY_HEART_DEPTH_RANGE: readonly [number, number] = [0.5, 0.85];
 
 /** Heart resting BPM — fixed for prototype; will sync to track tempo later. */
 export const HEART_BPM_DEFAULT = 75;
@@ -79,11 +81,36 @@ export function computeHeartBeat(
   };
 }
 
+/**
+ * Fade-out multiplier for d ∈ [0.70, 0.85] (spec Gap F).
+ *
+ * d ≤ 0.70 → 1.0  (fully visible)
+ * d = 0.70 → 1.0  (fade starts)
+ * d = 0.77 → ≈0.5 (halfway)
+ * d ≥ 0.85 → 0.0  (completely transparent / invisible)
+ *
+ * Uses smoothstep for a perceptually smooth fade.
+ * NOTE: smoothstep(0.85, 0.70, d) is the reverse direction.
+ */
+export function computeFadeOut(d: number): number {
+  // THREE.MathUtils.smoothstep(x, min, max) clamps x to [min,max] then applies
+  // smoothstep. We want 1 at d=0.70 and 0 at d=0.85, so we reverse the range.
+  // Equivalent: 1 - smoothstep(d, 0.70, 0.85)
+  const t = Math.max(0, Math.min(1, (d - 0.70) / (0.85 - 0.70)));
+  return 1 - t * t * (3 - 2 * t); // smoothstep formula
+}
+
 // ---------------------------------------------------------------------------
 // Heart — mesh that pulses at 75 BPM, the ONLY thing we feed to Bloom.
 // ---------------------------------------------------------------------------
 
-function Heart({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
+function Heart({
+  activeRef,
+  depthRef,
+}: {
+  activeRef: React.MutableRefObject<boolean>;
+  depthRef: React.MutableRefObject<number>;
+}) {
   const meshRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
   const tweakRef = useTweakRef();
@@ -101,7 +128,9 @@ function Heart({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
     const beat = Math.sin((t * Math.PI * 2) / period);
     const pulse = 0.5 + 0.5 * Math.pow(Math.max(0, beat), 2);
     meshRef.current.scale.setScalar(1 + pulse * pulseScale);
-    matRef.current.emissiveIntensity = heartEmissiveBase + pulse * heartEmissiveRange;
+    // Apply fade-out in d ∈ [0.70, 0.85] so heart disappears before EndCard (Gap F).
+    const fadeOut = computeFadeOut(depthRef.current);
+    matRef.current.emissiveIntensity = (heartEmissiveBase + pulse * heartEmissiveRange) * fadeOut;
   });
 
   return (
@@ -123,7 +152,13 @@ function Heart({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
 // Membrane — inside-out sphere with custom GLSL. Stays OUT of Bloom.
 // ---------------------------------------------------------------------------
 
-function Membrane({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
+function Membrane({
+  activeRef,
+  depthRef,
+}: {
+  activeRef: React.MutableRefObject<boolean>;
+  depthRef: React.MutableRefObject<number>;
+}) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
   const tweakRef = useTweakRef();
 
@@ -151,8 +186,10 @@ function Membrane({ activeRef }: { activeRef: React.MutableRefObject<boolean> })
     // Live-update tweakable uniforms from TweakStore.
     const { membraneFresnelPower, membraneAlphaInner, membraneAlphaEdge } = tweakRef.current;
     matRef.current.uniforms.uFresnelPower.value = membraneFresnelPower;
-    matRef.current.uniforms.uAlphaInner.value = membraneAlphaInner;
-    matRef.current.uniforms.uAlphaEdge.value = membraneAlphaEdge;
+    // Apply fade-out in d ∈ [0.70, 0.85] so membrane disappears before EndCard (Gap F).
+    const fadeOut = computeFadeOut(depthRef.current);
+    matRef.current.uniforms.uAlphaInner.value = membraneAlphaInner * fadeOut;
+    matRef.current.uniforms.uAlphaEdge.value = membraneAlphaEdge * fadeOut;
   });
 
   return (
@@ -241,26 +278,6 @@ function OuterSea({ activeRef }: { activeRef: React.MutableRefObject<boolean> })
 }
 
 // ---------------------------------------------------------------------------
-// Camera — sits at the membrane centre, breathes very slowly.
-// ---------------------------------------------------------------------------
-
-function BreathingCamera({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
-  const { camera } = useThree();
-  useFrame(({ clock }) => {
-    if (!activeRef.current) return;
-    const t = clock.getElapsedTime();
-    // Spec §6.2: amplitude tiny (≤ 8 cm), frequencies low (no motion sickness).
-    camera.position.set(
-      Math.sin(t * 0.1) * 0.08,
-      Math.cos(t * 0.07) * 0.05,
-      0,
-    );
-    camera.lookAt(0, 0, -1);
-  });
-  return null;
-}
-
-// ---------------------------------------------------------------------------
 // Scene
 // ---------------------------------------------------------------------------
 
@@ -343,7 +360,7 @@ export function SceneJellyHeart({ depthRef }: SceneProps) {
       />
 
       <group ref={sceneGroupRef} visible={false}>
-        <BreathingCamera activeRef={activeRef} />
+        {/* Camera breathing is now handled by CameraController (Gap B). */}
 
         {/* Lights — DirectionalLight from above (warm gold), AmbientLight cool
             purple to suggest the surrounding dark sea filtering through. */}
@@ -359,12 +376,14 @@ export function SceneJellyHeart({ depthRef }: SceneProps) {
         <OuterSea activeRef={activeRef} />
 
         {/* Membrane luminance peaks ~0.65 (alpha-blended over outer sea), below
-            the bloom threshold of 1.0, so it stays out of the glow by physics. */}
-        <Membrane activeRef={activeRef} />
+            the bloom threshold of 1.0, so it stays out of the glow by physics.
+            depthRef passed for fade-out in d ∈ [0.70, 0.85] (Gap F). */}
+        <Membrane activeRef={activeRef} depthRef={depthRef} />
       </group>
 
       <group ref={heartGroupRef} visible={false}>
-        <Heart activeRef={activeRef} />
+        {/* depthRef passed for fade-out in d ∈ [0.70, 0.85] (Gap F). */}
+        <Heart activeRef={activeRef} depthRef={depthRef} />
       </group>
 
       <EffectComposer multisampling={0}>

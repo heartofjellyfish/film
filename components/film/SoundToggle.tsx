@@ -6,8 +6,12 @@ import { useAudioSubsystem } from './AudioContext';
 const STORAGE_KEY = 'film-sound-enabled';
 
 function getInitialEnabled(): boolean {
-  if (typeof window === 'undefined') return false;
-  return localStorage.getItem(STORAGE_KEY) === 'true';
+  if (typeof window === 'undefined') return true; // SSR: default on
+  const stored = localStorage.getItem(STORAGE_KEY);
+  // Key absent → first visit → default ON.
+  // Key present → respect user's stored preference ('true' or 'false').
+  if (stored === null) return true;
+  return stored === 'true';
 }
 
 export function SoundToggle() {

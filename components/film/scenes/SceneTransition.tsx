@@ -19,6 +19,8 @@
  * Spec §7.4 explicitly forbids: specific props (piano/temple/ark), dramatic
  * camera tricks (rotation/mirror), chapter cards.
  */
+// NOTE: camera drift is now handled by CameraController (Gap B).
+// This scene only updates fog/background and visual content.
 import { useGLTF } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
@@ -199,32 +201,6 @@ function FarSilhouettes() {
 }
 
 // ---------------------------------------------------------------------------
-// Camera drift — from (0, 2, 0) at d=0.10 to (0, 0, 0) at d=0.50. First time
-// the camera moves in the entire film.
-// ---------------------------------------------------------------------------
-
-function DriftCamera({
-  depthRef,
-  activeRef,
-}: {
-  depthRef: React.MutableRefObject<number>;
-  activeRef: React.MutableRefObject<boolean>;
-}) {
-  const { camera } = useThree();
-  useFrame(() => {
-    if (!activeRef.current) return;
-    const d = depthRef.current;
-    const t =
-      (d - SCENE_TRANSITION_DEPTH_RANGE[0]) /
-      (SCENE_TRANSITION_DEPTH_RANGE[1] - SCENE_TRANSITION_DEPTH_RANGE[0]);
-    const eased = THREE.MathUtils.smoothstep(t, 0, 1);
-    camera.position.set(0, 2 - 2 * eased, 0);
-    camera.lookAt(0, 0, -1);
-  });
-  return null;
-}
-
-// ---------------------------------------------------------------------------
 // Fog/background interpolation
 // ---------------------------------------------------------------------------
 
@@ -301,12 +277,8 @@ export function SceneTransition({ depthRef }: SceneProps) {
   return (
     <group>
       <ActiveWindowGate depthRef={depthRef} activeRef={activeRef} groupRef={groupRef} />
-      {/* DriftCamera and TransitionFog operate on shared three.js objects
-          (camera, scene.fog) — they read activeRef and no-op when out of
-          window, so it's fine for them to stay outside the visibility-gated
-          group. The visual content (particles, silhouettes, ambient light)
-          goes inside the gated group. */}
-      <DriftCamera depthRef={depthRef} activeRef={activeRef} />
+      {/* TransitionFog operates on shared three.js objects (scene.fog/background).
+          DriftCamera has been removed — camera is now owned by CameraController (Gap B). */}
       <TransitionFog depthRef={depthRef} activeRef={activeRef} />
       <group ref={groupRef} visible={false}>
         <ambientLight intensity={0.35} color="#7a708c" />

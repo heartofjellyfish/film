@@ -17,6 +17,8 @@
 import { Sky, useGLTF } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
+// NOTE: camera is handled by CameraController (Level 3, FilmRoot). This scene
+// does NOT touch camera.position / camera.lookAt (Gap B red line).
 import * as THREE from 'three';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import type { SceneProps } from '../types';
@@ -34,9 +36,6 @@ export const SCENE_SEA_RISING_DEPTH_RANGE: readonly [number, number] = [0.0, 0.1
 
 /** Depth at which the water surface passes through the camera (engulfment). */
 export const ENGULFMENT_THRESHOLD = 0.07;
-
-/** Camera y position — exact eye height of someone standing on the beach. */
-const CAMERA_Y = 2.0;
 
 /** Water y at d=0 (bottom of tween) and d=0.10 (top of tween). */
 const WATER_Y_START = -0.5;
@@ -72,26 +71,6 @@ export function engulfmentCrossed(
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-
-/**
- * Static camera rig: locks the camera at (0, 2, 0) looking toward the horizon.
- * "This is the only scene in the entire film where the camera is absolutely
- * still" — spec §5.2. The CameraRig in OceanScene.tsx (web/) moves; this one
- * does not.
- *
- * The activeRef gate prevents this from fighting SceneTransition's
- * DriftCamera and SceneJellyHeart's BreathingCamera when we're past d=0.10.
- */
-function StaticCamera({ activeRef }: { activeRef: React.MutableRefObject<boolean> }) {
-  const { camera } = useThree();
-  // Set on every frame in our window so an upstream rig can't drag us off.
-  useFrame(() => {
-    if (!activeRef.current) return;
-    camera.position.set(0, CAMERA_Y, 0);
-    camera.lookAt(0, CAMERA_Y, -100);
-  });
-  return null;
-}
 
 /**
  * Procedural beach plane — no GLB needed. Wet, low-saturation sand colour.
@@ -148,13 +127,21 @@ function DistantJellyfish() {
 }
 
 /**
- * Cold horizon sky (Sugimoto-style grey-white).
- * Sun is low (elevation ≈ 10°) but de-saturated by high turbidity / low mie.
+ * Cold horizon sky — Sugimoto sea-photograph grey-white (spec §5.4, Gap D).
+ *
+ * Changes from initial params (which gave a warm-ish Preetham sky):
+ *   turbidity: 6 → 12  (high aerosols → heavy scatter → grey-white wash)
+ *   rayleigh:  1.5 → 0.5 (less blue Rayleigh → sky not azure-tinted)
+ *   mieCoefficient: 0.001 → 0.005 (more scattering particles → flatter haze)
+ *   mieDirectionalG: 0.95 → 0.8 (wider forward-scatter lobe → diffuser sun)
+ *   elevation: ~10° → ~65° (near zenith → sun near top, removes warm low-sun halo)
+ *
+ * Target: sky and sea compressed into two nearly-identical pale-grey bands.
  */
 function SugimotoSky() {
   const sunDir = useMemo(() => {
     const azimuth = (180 * Math.PI) / 180; // dead ahead
-    const elevation = (10 * Math.PI) / 180;
+    const elevation = (65 * Math.PI) / 180; // near zenith — removes warm sunset halo
     return new THREE.Vector3(
       Math.cos(elevation) * Math.sin(azimuth),
       Math.sin(elevation),
@@ -165,12 +152,11 @@ function SugimotoSky() {
   return (
     <Sky
       sunPosition={[sunDir.x, sunDir.y, sunDir.z]}
-      turbidity={6}
-      rayleigh={1.5}
-      // Low mie + g pushed close to 1 squashes the warm halo around the sun
-      // — keeps the sky overcast-grey rather than sunset-orange.
-      mieCoefficient={0.001}
-      mieDirectionalG={0.95}
+      turbidity={12}
+      rayleigh={0.5}
+      // Higher mie coefficient + lower g → wider, flatter scattering → grey haze
+      mieCoefficient={0.005}
+      mieDirectionalG={0.8}
       distance={4500}
     />
   );
@@ -236,10 +222,7 @@ export function SceneSeaRising({ depthRef, onEvent }: SceneProps) {
   const waterRef = useRef<Water | null>(null);
   const engulfedRef = useRef(false);
   const prevDepthRef = useRef(0);
-  // True while depthRef is inside this scene's window — drives StaticCamera
-  // (so we don't fight other scenes that own the camera) and gates the group
-  // visibility (so the beach/sky aren't visible during scene #6).
-  const activeRef = useRef(false);
+  // Camera is now handled by CameraController (Gap B). activeRef removed.
   const groupRef = useRef<THREE.Group>(null);
 
   // Cold-tinted fog when underwater (spec §5.7 — variable warm/cool fog
@@ -261,12 +244,10 @@ export function SceneSeaRising({ depthRef, onEvent }: SceneProps) {
     // mutating any ref-driven state. This is the active-window contract:
     // scenes do nothing while their window is closed.
     if (d > SCENE_SEA_RISING_DEPTH_RANGE[1]) {
-      activeRef.current = false;
       prevDepthRef.current = d;
       if (groupRef.current) groupRef.current.visible = false;
       return;
     }
-    activeRef.current = true;
     if (groupRef.current) groupRef.current.visible = true;
 
     // Water y is the visible rise.
@@ -302,13 +283,13 @@ export function SceneSeaRising({ depthRef, onEvent }: SceneProps) {
 
   return (
     <group ref={groupRef}>
-      <StaticCamera activeRef={activeRef} />
       <SugimotoSky />
       <ambientLight intensity={0.55} color="#b8c2cc" />
+      {/* directionalLight: cool neutral white — overcast diffuse, not warm sunset gold */}
       <directionalLight
         position={[0, 12, -20]}
         intensity={0.9}
-        color="#cdd6df"
+        color="#d0ccc8"
       />
       <ColdWater waterRef={waterRef} />
       <Beach />

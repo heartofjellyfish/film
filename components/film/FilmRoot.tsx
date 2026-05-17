@@ -49,6 +49,7 @@ import { Overlay } from './Overlay';
 import { AudioProvider } from './AudioContext';
 import { SoundToggle } from './SoundToggle';
 import { TweakProvider } from './TweakStore';
+import { CameraController } from './CameraController';
 import { createAudioSubsystem, type AudioSubsystem } from './audio/AudioManager';
 import { TRACKS } from './audio/manifest';
 import type { EnvCapabilities, SceneEvent, TrackSlug } from './types';
@@ -103,6 +104,23 @@ function ModeMachineDriver() {
 }
 
 // ---------------------------------------------------------------------------
+// EndCardWatcher — fires 'depth-end-card' event when d crosses 0.85 (Gap A).
+// Lives inside <Canvas> so it can use useFrame. Communicates via ModeMachine's
+// subscribe channel (the only legal inter-module communication path).
+// RED LINE: does not write depthRef.current.
+// ---------------------------------------------------------------------------
+
+function EndCardWatcher() {
+  const machine = useModeMachine();
+  useFrame(() => {
+    if (machine.depthRef.current >= 0.85) {
+      machine.fireEndCard();
+    }
+  });
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // FilmInner — rendered after started=true, inside <ModeMachineProvider>.
 // Keeps Canvas / Overlay / TweakPanel / Stats inside the Provider subtree.
 // ---------------------------------------------------------------------------
@@ -139,6 +157,10 @@ function FilmInner({ query, audio, showCeremony, onStart }: FilmInnerProps) {
         gl={{ antialias: true }}
       >
         <ModeMachineDriver />
+        {/* CameraController: unified camera driver (Gap B). Reads depthRef, never writes. */}
+        <CameraController depthRef={depthRef} />
+        {/* EndCardWatcher: fires depth-end-card event when d >= 0.85 (Gap A). */}
+        <EndCardWatcher />
         <Suspense fallback={null}>
           <Scenes depthRef={depthRef} onEvent={handleSceneEvent} />
         </Suspense>
