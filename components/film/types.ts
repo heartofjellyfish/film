@@ -92,3 +92,20 @@ export interface AutoEaseSegment {
   durationMs: number;
   ease: 'linear' | 'easeInOut' | 'easeOut';
 }
+
+// ---------------------------------------------------------------------------
+// Bilingual overlay
+// ---------------------------------------------------------------------------
+
+/** Which language is visually emphasised at the current depth. */
+export type BilingualLayer = 'en-emphasis' | 'balanced' | 'zh-emphasis';
+
+export interface ChapterCardEntry {
+  slug: TrackSlug;
+  /** Roman numeral label, e.g. 'i.' */
+  roman: string;
+  /** English track title */
+  en: string;
+  /** Chinese title */
+  zh: string;
+}

@@ -2,7 +2,7 @@
  * Overlay — DOM layer sitting above the R3F Canvas.
  *
  * Subscribes to ModeMachine events and decides what to display:
- *   - anchor-entered  → show ChapterCard for that slug
+ *   - anchor-entered  → show ChapterCard for that slug; compute bilingual layer
  *   - anchor-exited   → hide ChapterCard (if the exited slug matches current)
  *   - depth-end-card  → show EndCard when d >= 0.85 (early trigger, spec Gap A)
  *   - auto-completed  → show EndCard (fallback latch for d=1.0)
@@ -12,6 +12,9 @@
  * above the Canvas without blocking any future interactive elements added later.
  *
  * RED LINE: Overlay NEVER writes depthRef.current. It only subscribes to events.
+ *
+ * Bilingual layer is updated discretely on anchor-entered events (not every frame)
+ * so there are no unnecessary React re-renders during scroll.
  */
 'use client';
 
@@ -20,7 +23,8 @@ import { useModeMachine } from './useModeMachine';
 import { CHAPTER_CARDS, type ChapterCardEntry } from './chapterCards';
 import { ChapterCard } from './ChapterCard';
 import { EndCard } from './EndCard';
-import type { ModeEvent } from './types';
+import { selectBilingualLayer } from './bilingual';
+import type { ModeEvent, BilingualLayer } from './types';
 
 // Duration must match ChapterCard's CSS transition-duration (700ms) so the card
 // is invisible before we remove it from the DOM.
@@ -31,6 +35,7 @@ export function Overlay() {
 
   // null means no chapter card is currently shown.
   const [current, setCurrent] = useState<ChapterCardEntry | null>(null);
+  const [layer, setLayer] = useState<BilingualLayer>('en-emphasis');
   const [showEndCard, setShowEndCard] = useState(false);
 
   // Track current slug in a ref so the event handler always has the latest value
@@ -50,6 +55,9 @@ export function Overlay() {
         }
         const entry = CHAPTER_CARDS[e.slug];
         currentSlugRef.current = e.slug;
+        // Compute bilingual layer from depthRef at the moment the anchor is entered.
+        // This is discrete (per anchor event) — no per-frame re-renders.
+        setLayer(selectBilingualLayer(m.depthRef.current));
         setCurrent(entry);
       }
 
@@ -91,7 +99,7 @@ export function Overlay() {
         <ChapterCard
           key={current.slug}
           entry={current}
-          size={current.slug === 'vi_heart' ? 'large' : 'normal'}
+          layer={layer}
         />
       )}
       <EndCard show={showEndCard} />

@@ -1,5 +1,5 @@
 /**
- * Overlay — 5 test scenarios per detailed design §2.6 table.
+ * Overlay — 7 test scenarios per detailed design §2.6 table, plus bilingual layer test.
  *
  * Mock strategy: vi.mock replaces useModeMachine so every render of Overlay
  * uses the same createMockModeMachine instance. Events are fired via
@@ -38,7 +38,7 @@ describe('Overlay', () => {
     expect(screen.queryByTestId('end-card')).toBeNull();
   });
 
-  it('2. anchor-entered i_sea_rising → ChapterCard shows "i. Sea Rising / [中文歌名]"', async () => {
+  it('2. anchor-entered i_sea_rising → ChapterCard shows roman + en title + zh title', async () => {
     render(<Overlay />);
 
     await act(async () => {
@@ -49,7 +49,7 @@ describe('Overlay', () => {
     expect(card).toBeTruthy();
     expect(card.textContent).toContain('i.');
     expect(card.textContent).toContain('Sea Rising');
-    expect(card.textContent).toContain('[中文歌名]');
+    expect(card.textContent).toContain('海水在涨');
   });
 
   it('3. while #1 card is shown, anchor-entered vi_heart → card switches to vi_heart content', async () => {
@@ -141,5 +141,43 @@ describe('Overlay', () => {
 
     // Still just one EndCard (setShowEndCard(true) is idempotent)
     expect(screen.getAllByTestId('end-card')).toHaveLength(1);
+  });
+
+  it('8. bilingual layer: anchor-entered vi_heart (depth≈0.55) → ChapterCard receives zh-emphasis layer', async () => {
+    // Set depthRef to vi_heart anchor so selectBilingualLayer returns zh-emphasis.
+    mockMachine = createMockModeMachine({ depth: 0.55 });
+
+    render(<Overlay />);
+
+    await act(async () => {
+      mockMachine.fire({ type: 'anchor-entered', slug: 'vi_heart', anchor: 0.55 });
+    });
+
+    // zh span should have higher opacity than en span (zh-emphasis)
+    const zhSpan = screen.getByTestId('chapter-card-zh');
+    const enSpan = screen.getByTestId('chapter-card-en');
+    // Both spans are always rendered (no conditional rendering)
+    expect(zhSpan).toBeTruthy();
+    expect(enSpan).toBeTruthy();
+    // zh-emphasis: zh opacity=0.9, en opacity=0.4
+    expect(zhSpan.style.opacity).toBe('0.9');
+    expect(enSpan.style.opacity).toBe('0.4');
+  });
+
+  it('9. bilingual layer: anchor-entered i_sea_rising (depth≈0.05) → ChapterCard receives en-emphasis layer', async () => {
+    // Set depthRef to i_sea_rising anchor so selectBilingualLayer returns en-emphasis.
+    mockMachine = createMockModeMachine({ depth: 0.05 });
+
+    render(<Overlay />);
+
+    await act(async () => {
+      mockMachine.fire({ type: 'anchor-entered', slug: 'i_sea_rising', anchor: 0.05 });
+    });
+
+    const enSpan = screen.getByTestId('chapter-card-en');
+    const zhSpan = screen.getByTestId('chapter-card-zh');
+    // en-emphasis: en opacity=0.9, zh opacity=0.4
+    expect(enSpan.style.opacity).toBe('0.9');
+    expect(zhSpan.style.opacity).toBe('0.4');
   });
 });

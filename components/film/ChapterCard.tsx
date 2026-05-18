@@ -1,25 +1,27 @@
 /**
  * ChapterCard — DOM overlay card shown when depthRef enters an anchor zone.
  *
- * Fade in/out handled with CSS transition + data-state attribute.
- * Parent (Overlay) mounts the card → it enters "visible" state.
- * Before unmount, parent sets visible=false → opacity fades to 0,
- * then a timeout removes it from the DOM.
+ * Renders both English and Chinese title spans simultaneously (no conditional
+ * rendering). Visual emphasis is controlled by the `layer` prop via
+ * computeBilingualStyles(), which returns CSS style objects for each span.
+ * CSS `transition: all 600ms ease` makes layer changes smooth.
  *
- * size: 'large' is used for #6 (vi_heart) — bigger, more cathedral presence.
+ * Fade in/out handled with CSS transition + opacity.
+ * Parent (Overlay) mounts the card → it enters "visible" state.
+ * Before unmount, parent waits for fade-out then removes from DOM.
  */
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { ChapterCardEntry } from './chapterCards';
+import type { ChapterCardEntry, BilingualLayer } from './types';
+import { computeBilingualStyles } from './bilingual';
 
 export interface ChapterCardProps {
   entry: ChapterCardEntry;
-  /** 'large' for vi_heart — taller/heavier presence. Defaults to 'normal'. */
-  size?: 'normal' | 'large';
+  layer: BilingualLayer;
 }
 
-export function ChapterCard({ entry, size = 'normal' }: ChapterCardProps) {
+export function ChapterCard({ entry, layer }: ChapterCardProps) {
   const [visible, setVisible] = useState(false);
 
   // Trigger fade-in on next tick after mount so the CSS transition fires.
@@ -28,24 +30,31 @@ export function ChapterCard({ entry, size = 'normal' }: ChapterCardProps) {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const baseClasses =
-    'fixed font-serif text-white/60 pointer-events-none select-none transition-opacity duration-700';
+  const styles = computeBilingualStyles(layer);
 
-  const positionClasses = 'bottom-12 left-1/4';
-
-  const sizeClasses =
-    size === 'large'
-      ? 'text-2xl tracking-widest leading-loose'
-      : 'text-base tracking-wide leading-relaxed';
+  const transition = 'all 600ms ease';
 
   return (
     <div
-      className={`${baseClasses} ${positionClasses} ${sizeClasses}`}
+      className="fixed bottom-12 left-1/4 font-serif text-white/60 pointer-events-none select-none transition-opacity duration-700 flex flex-col gap-1"
       style={{ opacity: visible ? 1 : 0 }}
       data-testid="chapter-card"
       data-slug={entry.slug}
     >
-      {entry.roman} {entry.en} / {entry.zh}
+      <span
+        className="font-serif"
+        style={{ transition, ...styles.en }}
+        data-testid="chapter-card-en"
+      >
+        {entry.roman} {entry.en}
+      </span>
+      <span
+        className="font-sans"
+        style={{ transition, ...styles.zh }}
+        data-testid="chapter-card-zh"
+      >
+        {entry.zh}
+      </span>
     </div>
   );
 }
