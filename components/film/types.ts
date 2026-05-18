@@ -116,3 +116,22 @@ export interface ChapterCardEntry {
   /** Chinese title */
   zh: string;
 }
+
+// ---------------------------------------------------------------------------
+// Camera keyframe
+// ---------------------------------------------------------------------------
+
+export interface CameraKeyframe {
+  /** Normalised depth [0, 1]. Table must be non-decreasing (duplicate depths allowed for scene snaps). */
+  depth: number;
+  /** World-space camera position. */
+  pos: readonly [number, number, number];
+  /** World-space lookAt target. */
+  lookAt: readonly [number, number, number];
+  /** FOV override; defaults to 50 when omitted. */
+  fov?: number;
+  /** Yaw offset in degrees; used by #4 self-rotation. Default 0. */
+  yawDeg?: number;
+  /** FOV pulse amplitude; used by #10 final pulse. Default 0 (no pulse). */
+  pulseFovAmp?: number;
+}

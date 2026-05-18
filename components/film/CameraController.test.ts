@@ -1,126 +1,200 @@
 /**
- * CameraController.test.ts — unit tests for computeCameraPose (Gap B).
+ * CameraController.test.ts — unit tests for keyframe-based camera v2.
  *
- * The R3F component itself is not rendered (no Canvas needed); only the pure
- * function is tested. Coverage requirement: ≥80% on CameraController.ts.
+ * Tests only pure functions: findSurroundingKeyframes, interpolateKeyframes,
+ * computeCameraPoseV2. The R3F component is not rendered (no Canvas needed).
  */
 import { describe, it, expect } from 'vitest';
-import { computeCameraPose } from './CameraController';
+import {
+  findSurroundingKeyframes,
+  interpolateKeyframes,
+  computeCameraPoseV2,
+} from './CameraController';
+import { DEFAULT_CAMERA_KEYFRAMES } from './scenes/cameraKeyframes';
+import type { CameraKeyframe } from './types';
 
 // ---------------------------------------------------------------------------
-// Static segment: d ∈ [0, 0.10] → pos (0, 2, 0), lookAt (0, 2, -100)
+// findSurroundingKeyframes
 // ---------------------------------------------------------------------------
 
-describe('computeCameraPose — static segment (d ≤ 0.10)', () => {
-  it('d=0 → pos (0,2,0), lookAt (0,2,-100)', () => {
-    const { pos, lookAt } = computeCameraPose(0);
-    expect(pos).toEqual([0, 2, 0]);
-    expect(lookAt).toEqual([0, 2, -100]);
+describe('findSurroundingKeyframes', () => {
+  const KF: ReadonlyArray<CameraKeyframe> = [
+    { depth: 0.0, pos: [0, 0, 0], lookAt: [0, 0, -1] },
+    { depth: 0.5, pos: [0, 5, 0], lookAt: [0, 0, -1] },
+    { depth: 1.0, pos: [0, 10, 0], lookAt: [0, 0, -1] },
+  ];
+
+  it('d below first keyframe → clamps to first, t=0', () => {
+    const r = findSurroundingKeyframes(-0.1, KF);
+    expect(r.prev.depth).toBe(0);
+    expect(r.next.depth).toBe(0);
+    expect(r.t).toBe(0);
   });
 
-  it('d=0.05 (mid-static) → still (0,2,0)', () => {
-    const { pos } = computeCameraPose(0.05);
-    expect(pos[0]).toBeCloseTo(0);
-    expect(pos[1]).toBeCloseTo(2);
-    expect(pos[2]).toBeCloseTo(0);
+  it('d above last keyframe → clamps to last, t=1', () => {
+    const r = findSurroundingKeyframes(1.5, KF);
+    expect(r.prev.depth).toBe(1.0);
+    expect(r.next.depth).toBe(1.0);
+    expect(r.t).toBe(1);
   });
 
-  it('d=0.10 (boundary) → still (0,2,0), lookAt (0,2,-100)', () => {
-    const { pos, lookAt } = computeCameraPose(0.10);
-    expect(pos).toEqual([0, 2, 0]);
-    expect(lookAt).toEqual([0, 2, -100]);
+  it('d in middle of segment → t=0.5', () => {
+    const r = findSurroundingKeyframes(0.25, KF);
+    expect(r.prev.depth).toBe(0);
+    expect(r.next.depth).toBe(0.5);
+    expect(r.t).toBeCloseTo(0.5, 5);
+  });
+
+  it('DEFAULT_CAMERA_KEYFRAMES: d=0.05 → between first two keyframes', () => {
+    const r = findSurroundingKeyframes(0.05, DEFAULT_CAMERA_KEYFRAMES);
+    expect(r.prev.depth).toBe(0.0);
+    expect(r.next.depth).toBe(0.1);
+    expect(r.t).toBeCloseTo(0.5, 5);
+  });
+
+  it('duplicate-depth boundary: d=0.10 → picks LATER keyframe as prev (#2 start)', () => {
+    // At d=0.10 there are two keyframes: index 1 (end of #1) and index 2 (start of #2).
+    // The later one (index 2) should be prev — camera already in #2 pose.
+    const r = findSurroundingKeyframes(0.10, DEFAULT_CAMERA_KEYFRAMES);
+    // prev should be the #2 start keyframe: pos [3,0,0]
+    expect(r.prev.pos[0]).toBeCloseTo(3, 5);
+    expect(r.prev.depth).toBe(0.10);
+    // next should be the #2 end keyframe: pos [-3,0,0]
+    expect(r.next.depth).toBe(0.16);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Drift segment: d ∈ (0.10, 0.50] → y lerps from 2 → 0, lookAt (0,0,-1)
+// interpolateKeyframes
 // ---------------------------------------------------------------------------
 
-describe('computeCameraPose — drift segment (0.10 < d ≤ 0.50)', () => {
-  it('d=0.10001 (just past boundary) → y close to 2', () => {
-    const { pos } = computeCameraPose(0.10001);
-    expect(pos[1]).toBeGreaterThan(1.99);
-    expect(pos[1]).toBeLessThanOrEqual(2);
+describe('interpolateKeyframes', () => {
+  it('smoothstep interpolates pos at t=0.5 to midpoint', () => {
+    const prev: CameraKeyframe = { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1] };
+    const next: CameraKeyframe = { depth: 1, pos: [10, 0, 0], lookAt: [0, 0, -1] };
+    const r = interpolateKeyframes(prev, next, 0.5, 0);
+    // smoothstep(0.5) = 0.5, so result is linear midpoint
+    expect(r.pos[0]).toBeCloseTo(5, 5);
   });
 
-  it('d=0.30 (mid-drift) → y in (0, 2), x=0, z=0', () => {
-    const { pos, lookAt } = computeCameraPose(0.30);
-    expect(pos[0]).toBeCloseTo(0);
-    expect(pos[1]).toBeGreaterThan(0);
-    expect(pos[1]).toBeLessThan(2);
-    expect(pos[2]).toBeCloseTo(0);
-    expect(lookAt).toEqual([0, 0, -1]);
+  it('fov defaults to 50 when omitted in both keyframes', () => {
+    const prev: CameraKeyframe = { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1] };
+    const next: CameraKeyframe = { depth: 1, pos: [0, 0, 0], lookAt: [0, 0, -1] };
+    const r = interpolateKeyframes(prev, next, 0.5, 0);
+    expect(r.fov).toBe(50);
   });
 
-  it('d=0.30 → y ≈ 1.0 (smoothstep midpoint check: u=0.5 → e=0.5 → y=1.0)', () => {
-    // u = (0.30 - 0.10) / 0.40 = 0.5
-    // smoothstep(0.5) = 0.5·0.5·(3 - 2·0.5) = 0.25 · 2 = 0.5
-    // y = 2 · (1 - 0.5) = 1.0
-    const { pos } = computeCameraPose(0.30);
-    expect(pos[1]).toBeCloseTo(1.0, 4);
+  it('t=0 returns prev pose', () => {
+    const prev: CameraKeyframe = { depth: 0, pos: [1, 2, 3], lookAt: [0, 0, -1], fov: 35 };
+    const next: CameraKeyframe = { depth: 1, pos: [9, 8, 7], lookAt: [1, 1, -1], fov: 60 };
+    const r = interpolateKeyframes(prev, next, 0, 0);
+    expect(r.pos).toEqual([1, 2, 3]);
+    expect(r.fov).toBe(35);
   });
 
-  it('d=0.50 (drift end) → y ≈ 0, lookAt (0,0,-1)', () => {
-    const { pos, lookAt } = computeCameraPose(0.50);
-    expect(pos[1]).toBeCloseTo(0, 4);
-    expect(lookAt).toEqual([0, 0, -1]);
+  it('t=1 returns next pose', () => {
+    const prev: CameraKeyframe = { depth: 0, pos: [1, 2, 3], lookAt: [0, 0, -1], fov: 35 };
+    const next: CameraKeyframe = { depth: 1, pos: [9, 8, 7], lookAt: [1, 1, -1], fov: 60 };
+    const r = interpolateKeyframes(prev, next, 1, 0);
+    expect(r.pos[0]).toBeCloseTo(9, 5);
+    expect(r.fov).toBeCloseTo(60, 5);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Breathing segment: d ∈ (0.50, 1.00] → sin/cos micro-movement at t=0
+// computeCameraPoseV2 — yaw
 // ---------------------------------------------------------------------------
 
-describe('computeCameraPose — breathing segment (d > 0.50)', () => {
-  it('d=0.55, t=0 → pos ≈ (0, 0.05, 0) — sin(0)=0, cos(0)=1', () => {
-    // bx = sin(0 * 0.1) * 0.08 = 0
-    // by = cos(0 * 0.07) * 0.05 = 0.05
-    const { pos, lookAt } = computeCameraPose(0.55, 0);
-    expect(pos[0]).toBeCloseTo(0, 5);
-    expect(pos[1]).toBeCloseTo(0.05, 5);
-    expect(pos[2]).toBeCloseTo(0, 5);
-    expect(lookAt).toEqual([0, 0, -1]);
+describe('computeCameraPoseV2 with yaw', () => {
+  it('yawDeg=0 keeps lookAt unchanged', () => {
+    const KF: ReadonlyArray<CameraKeyframe> = [
+      { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1], yawDeg: 0 },
+      { depth: 1, pos: [0, 0, 0], lookAt: [0, 0, -1], yawDeg: 0 },
+    ];
+    const r = computeCameraPoseV2(0.5, 0, KF);
+    expect(r.lookAt[0]).toBeCloseTo(0, 5);
+    expect(r.lookAt[2]).toBeCloseTo(-1, 5);
   });
 
-  it('d=0.70, t=0 → same as d=0.55 (breathing is t-only, not d-dependent)', () => {
-    const { pos: pos55 } = computeCameraPose(0.55, 0);
-    const { pos: pos70 } = computeCameraPose(0.70, 0);
-    expect(pos55).toEqual(pos70);
+  it('yawDeg=90 rotates lookAt 90° around Y at midpoint', () => {
+    const KF: ReadonlyArray<CameraKeyframe> = [
+      { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1], yawDeg: 0 },
+      { depth: 1, pos: [0, 0, 0], lookAt: [0, 0, -1], yawDeg: 180 },
+    ];
+    const r = computeCameraPoseV2(0.5, 0, KF);
+    // smoothstep(0.5)=0.5 → yaw=90 → rotate (0,0,-1) by 90° around Y → (+1, 0, 0) approx
+    expect(r.lookAt[0]).toBeCloseTo(1, 5);
+    expect(r.lookAt[2]).toBeCloseTo(0, 5);
   });
 
-  it('d=1.00, t=0 → pos in breathing range (x ∈ [-0.08, 0.08], y ∈ [-0.05, 0.05])', () => {
-    const { pos } = computeCameraPose(1.0, 0);
-    expect(Math.abs(pos[0])).toBeLessThanOrEqual(0.08 + 1e-9);
-    expect(Math.abs(pos[1])).toBeLessThanOrEqual(0.05 + 1e-9);
+  it('yawDeg=180 rotates lookAt to face opposite direction', () => {
+    const KF: ReadonlyArray<CameraKeyframe> = [
+      { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1], yawDeg: 180 },
+      { depth: 1, pos: [0, 0, 0], lookAt: [0, 0, -1], yawDeg: 180 },
+    ];
+    const r = computeCameraPoseV2(0.5, 0, KF);
+    // Rotate (0,0,-1) by 180° around Y → (0, 0, +1)
+    expect(r.lookAt[0]).toBeCloseTo(0, 5);
+    expect(r.lookAt[2]).toBeCloseTo(1, 5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeCameraPoseV2 — pulseFovAmp
+// ---------------------------------------------------------------------------
+
+describe('computeCameraPoseV2 with pulseFovAmp', () => {
+  it('pulseFovAmp=0 → fov stays at base', () => {
+    const KF: ReadonlyArray<CameraKeyframe> = [
+      { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1], fov: 50, pulseFovAmp: 0 },
+      { depth: 1, pos: [0, 0, 0], lookAt: [0, 0, -1], fov: 50, pulseFovAmp: 0 },
+    ];
+    const r = computeCameraPoseV2(0.5, 0.5, KF);
+    expect(r.fov).toBeCloseTo(50, 5);
   });
 
-  it('breathing amplitude stays within spec bounds over t=[0, 100]', () => {
-    for (let i = 0; i <= 100; i++) {
-      const t = i;
-      const { pos } = computeCameraPose(0.6, t);
-      expect(Math.abs(pos[0])).toBeLessThanOrEqual(0.08 + 1e-9);
-      expect(Math.abs(pos[1])).toBeLessThanOrEqual(0.05 + 1e-9);
+  it('pulseFovAmp>0 at clockT=0 → fov ≈ base (sin(0)=0)', () => {
+    const KF: ReadonlyArray<CameraKeyframe> = [
+      { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1], fov: 50, pulseFovAmp: 1.5 },
+      { depth: 1, pos: [0, 0, 0], lookAt: [0, 0, -1], fov: 50, pulseFovAmp: 1.5 },
+    ];
+    const r = computeCameraPoseV2(0.5, 0, KF);
+    expect(r.fov).toBeCloseTo(50, 5);
+  });
+
+  it('pulseFovAmp=1.5 at clockT=0.2s (quarter period 0.8s) → fov ≈ base+amp', () => {
+    const KF: ReadonlyArray<CameraKeyframe> = [
+      { depth: 0, pos: [0, 0, 0], lookAt: [0, 0, -1], fov: 50, pulseFovAmp: 1.5 },
+      { depth: 1, pos: [0, 0, 0], lookAt: [0, 0, -1], fov: 50, pulseFovAmp: 1.5 },
+    ];
+    const r = computeCameraPoseV2(0.5, 0.2, KF);
+    // sin(2π · 0.2 / 0.8) = sin(π/2) = 1 → fov = 50 + 1.5 · 1 = 51.5
+    expect(r.fov).toBeCloseTo(51.5, 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFAULT_CAMERA_KEYFRAMES invariants
+// ---------------------------------------------------------------------------
+
+describe('DEFAULT_CAMERA_KEYFRAMES invariants', () => {
+  it('has at least 22 keyframes', () => {
+    expect(DEFAULT_CAMERA_KEYFRAMES.length).toBeGreaterThanOrEqual(22);
+  });
+
+  it('depth values are non-decreasing', () => {
+    for (let i = 1; i < DEFAULT_CAMERA_KEYFRAMES.length; i++) {
+      expect(DEFAULT_CAMERA_KEYFRAMES[i].depth).toBeGreaterThanOrEqual(
+        DEFAULT_CAMERA_KEYFRAMES[i - 1].depth,
+      );
     }
   });
-});
 
-// ---------------------------------------------------------------------------
-// Boundary: segment transitions are smooth
-// ---------------------------------------------------------------------------
-
-describe('computeCameraPose — segment boundary continuity', () => {
-  it('d=0.10 and d=0.10+ε share the same position (no discontinuity)', () => {
-    const { pos: atBoundary } = computeCameraPose(0.10);
-    const { pos: justAfter } = computeCameraPose(0.10 + 1e-6);
-    expect(atBoundary[1]).toBeCloseTo(justAfter[1], 3);
+  it('first keyframe at depth=0', () => {
+    expect(DEFAULT_CAMERA_KEYFRAMES[0].depth).toBe(0);
   });
 
-  it('d=0.50 and d=0.50+ε: drift ends at y≈0, breathing starts near y≈0.05 at t=0', () => {
-    const { pos: driftEnd } = computeCameraPose(0.50);
-    expect(driftEnd[1]).toBeCloseTo(0, 4);
-
-    // Breathing at t=0: y = cos(0*0.07)*0.05 = 0.05 — small but above 0
-    const { pos: breathStart } = computeCameraPose(0.50 + 1e-6, 0);
-    expect(breathStart[1]).toBeCloseTo(0.05, 3);
+  it('last keyframe at depth=1.0', () => {
+    expect(DEFAULT_CAMERA_KEYFRAMES[DEFAULT_CAMERA_KEYFRAMES.length - 1].depth).toBe(1.0);
   });
 });
