@@ -39,7 +39,8 @@ import { Stats } from '@react-three/drei';
 import type { MutableRefObject } from 'react';
 
 import { createEnvProbe } from './EnvProbe';
-import { createModeMachine, type ModeMachineDeps } from './ModeMachine';
+import { createModeMachine, type ModeMachineDepsV2 } from './ModeMachine';
+import { ScrollProvider } from './ScrollProvider';
 import { EntryCeremony } from './EntryCeremony';
 import { WebGLFallback } from './WebGLFallback';
 import { ModeMachineProvider, useModeMachine } from './useModeMachine';
@@ -210,7 +211,7 @@ export function FilmRoot() {
 
 
   // --- ModeMachine deps (stable object, rebuilt only when capabilities land) ---
-  const machineDeps = useMemo<ModeMachineDeps>(
+  const machineDeps = useMemo<ModeMachineDepsV2>(
     () => ({
       envProbe: capabilities ?? { isMobile: false },
       anchors: getAllAnchors(),
@@ -317,6 +318,9 @@ export function FilmRoot() {
       <div style={{ minHeight: '400vh' }} aria-hidden="true" />
 
       <ModeMachineProvider machine={machine!}>
+        {/* ScrollProvider: Lenis instance + virtual scroll bridge to ModeMachine.
+            Must render INSIDE ModeMachineProvider (calls useModeMachine()). */}
+        <ScrollProvider>
         {/* AudioProvider: makes AudioSubsystem available to TweakPanel and SoundToggle via useAudioSubsystem() */}
         <AudioProvider value={audio!}>
           {/* TweakProvider: makes TweakValues ref available to Scenes and TweakPanel */}
@@ -330,6 +334,7 @@ export function FilmRoot() {
           </TweakProvider>
           <SoundToggle />
         </AudioProvider>
+        </ScrollProvider>
       </ModeMachineProvider>
     </>
   );

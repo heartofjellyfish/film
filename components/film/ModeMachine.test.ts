@@ -8,8 +8,10 @@ import {
   AUTO_DURATION_MS,
   LISTEN_IDLE_MS,
   LISTEN_ANCHOR_RADIUS,
+  applyEase,
+  DEFAULT_AUTO_EASE_V2,
 } from './ModeMachine';
-import type { ModeMachineDeps, ModeMachine } from './ModeMachine';
+import type { ModeMachineDeps, ModeMachineV2 } from './ModeMachine';
 import type { ModeEvent } from './types';
 
 // ---------------------------------------------------------------------------
@@ -482,6 +484,157 @@ describe('ModeMachine', () => {
     m.tick(performance.now());
 
     // Should NOT be in listen mode — depth is outside the anchor radius
+    expect(m.modeRef.current).toBe('scroll');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyEase — pure function tests (N-7: deterministic pure functions only)
+// ---------------------------------------------------------------------------
+
+describe('applyEase', () => {
+  it('linear: returns t unchanged', () => {
+    expect(applyEase(0, 'linear')).toBe(0);
+    expect(applyEase(0.5, 'linear')).toBe(0.5);
+    expect(applyEase(1, 'linear')).toBe(1);
+    expect(applyEase(0.25, 'linear')).toBe(0.25);
+  });
+
+  it('easeInOut: t=0 → 0', () => {
+    expect(applyEase(0, 'easeInOut')).toBe(0);
+  });
+
+  it('easeInOut: t=0.5 → 0.5 (smoothstep midpoint)', () => {
+    expect(applyEase(0.5, 'easeInOut')).toBe(0.5);
+  });
+
+  it('easeInOut: t=1 → 1', () => {
+    expect(applyEase(1, 'easeInOut')).toBe(1);
+  });
+
+  it('easeOut: t=0 → 0', () => {
+    expect(applyEase(0, 'easeOut')).toBe(0);
+  });
+
+  it('easeOut: t=0.5 → 0.75 (1-(1-0.5)^2)', () => {
+    expect(applyEase(0.5, 'easeOut')).toBeCloseTo(0.75, 10);
+  });
+
+  it('easeOut: t=1 → 1', () => {
+    expect(applyEase(1, 'easeOut')).toBe(1);
+  });
+
+  it('easeOut: t=0.25 ≈ 0.4375 (1-(1-0.25)^2)', () => {
+    expect(applyEase(0.25, 'easeOut')).toBeCloseTo(0.4375, 5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFAULT_AUTO_EASE_V2 invariants
+// ---------------------------------------------------------------------------
+
+describe('DEFAULT_AUTO_EASE_V2', () => {
+  it('sum of all durationMs equals 90_000', () => {
+    const total = DEFAULT_AUTO_EASE_V2.reduce((sum, seg) => sum + seg.durationMs, 0);
+    expect(total).toBe(90_000);
+  });
+
+  it('has exactly 10 segments', () => {
+    expect(DEFAULT_AUTO_EASE_V2).toHaveLength(10);
+  });
+
+  it('first segment starts at fromDepth=0', () => {
+    expect(DEFAULT_AUTO_EASE_V2[0].fromDepth).toBe(0);
+  });
+
+  it('last segment ends at toDepth=1', () => {
+    expect(DEFAULT_AUTO_EASE_V2[DEFAULT_AUTO_EASE_V2.length - 1].toDepth).toBe(1.0);
+  });
+
+  it('segments are contiguous: each fromDepth equals previous toDepth', () => {
+    for (let i = 1; i < DEFAULT_AUTO_EASE_V2.length; i++) {
+      expect(DEFAULT_AUTO_EASE_V2[i].fromDepth).toBe(DEFAULT_AUTO_EASE_V2[i - 1].toDepth);
+    }
+  });
+
+  it('all depths are within [0, 1]', () => {
+    for (const seg of DEFAULT_AUTO_EASE_V2) {
+      expect(seg.fromDepth).toBeGreaterThanOrEqual(0);
+      expect(seg.toDepth).toBeLessThanOrEqual(1);
+      expect(seg.fromDepth).toBeLessThan(seg.toDepth);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pushVirtualScroll tests
+// ---------------------------------------------------------------------------
+
+describe('pushVirtualScroll', () => {
+  it('pushVirtualScroll in auto mode triggers transition to scroll', () => {
+    const m = createModeMachine(makeDeps());
+    const events: ModeEvent[] = [];
+    m.subscribe((e) => events.push(e));
+    m.start();
+
+    expect(m.modeRef.current).toBe('auto');
+
+    // Simulate ScrollProvider pushing a virtual scroll position
+    m.pushVirtualScroll(500);
+
+    expect(m.modeRef.current).toBe('scroll');
+    expect(events).toContainEqual({ type: 'mode-changed', from: 'auto', to: 'scroll' });
+  });
+
+  it('pushVirtualScroll drives depthRef in scroll mode (not window.scrollY)', () => {
+    const m = createModeMachine(makeDeps());
+    m.start();
+
+    // Enter scroll mode via native scroll event (simulating an initial scroll)
+    window.dispatchEvent(new Event('scroll'));
+    expect(m.modeRef.current).toBe('scroll');
+
+    // Set window.scrollY to a different value — to confirm we use virtualScroll
+    setScroll(0, 1000, 0);
+
+    // Push virtual scroll at 500px
+    m.pushVirtualScroll(500);
+
+    // Tick — depthRef should follow virtual scroll (500/1000 = 0.5), not window.scrollY (0)
+    vi.advanceTimersByTime(50);
+    m.tick(performance.now());
+
+    expect(m.depthRef.current).toBeCloseTo(0.5, 5);
+  });
+
+  it('pushVirtualScroll on mobile does NOT change mode from auto', () => {
+    const m = createModeMachine(makeDeps({ envProbe: { isMobile: true } }));
+    m.start();
+
+    m.pushVirtualScroll(500);
+
+    expect(m.modeRef.current).toBe('auto');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ?focus= scroll listener attach order (Gap C fix)
+// ---------------------------------------------------------------------------
+
+describe('initialFocus scroll listener attach', () => {
+  it('initialFocus + scroll >= EXIT_LISTEN_SCROLL_PX exits listen mode', () => {
+    const m = createModeMachine(makeDeps({ initialFocus: 'vi_heart' }));
+    m.start();
+
+    // Should be locked in listen
+    expect(m.modeRef.current).toBe('listen');
+    expect(m.depthRef.current).toBeCloseTo(0.55, 5);
+
+    // Dispatch scroll event >= EXIT_LISTEN_SCROLL_PX from listen start
+    setScroll(600, 1000, 0); // 600 - initial_listen_scrollY(0) = 600 >= 5
+    window.dispatchEvent(new Event('scroll'));
+
+    // Scroll listener was attached BEFORE initialFocus early return — so this works
     expect(m.modeRef.current).toBe('scroll');
   });
 });

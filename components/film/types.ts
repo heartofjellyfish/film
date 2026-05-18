@@ -78,3 +78,17 @@ export interface SceneRegistration {
   anchor: number;
   component: ComponentType<SceneProps>;
 }
+
+// ---------------------------------------------------------------------------
+// Piecewise ease
+// ---------------------------------------------------------------------------
+
+export interface AutoEaseSegment {
+  /** Start depth of this segment (inclusive). */
+  fromDepth: number;
+  /** End depth of this segment (exclusive; last segment's toDepth=1.0 is inclusive). */
+  toDepth: number;
+  /** Duration of this segment in milliseconds. */
+  durationMs: number;
+  ease: 'linear' | 'easeInOut' | 'easeOut';
+}

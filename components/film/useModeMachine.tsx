@@ -17,13 +17,13 @@
  * useEffect cleanup calls machine.dispose() to remove listeners on unmount.
  */
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import type { ModeMachine } from './ModeMachine';
+import type { ModeMachineV2 } from './ModeMachine';
 
 // ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
 
-const ModeMachineContext = createContext<ModeMachine | null>(null);
+const ModeMachineContext = createContext<ModeMachineV2 | null>(null);
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -31,7 +31,7 @@ const ModeMachineContext = createContext<ModeMachine | null>(null);
 
 export interface ModeMachineProviderProps {
   /** Pre-constructed ModeMachine instance. FilmRoot creates it with createModeMachine(). */
-  machine: ModeMachine;
+  machine: ModeMachineV2;
   children: ReactNode;
 }
 
@@ -53,10 +53,10 @@ export function ModeMachineProvider({ machine, children }: ModeMachineProviderPr
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the ModeMachine instance from the nearest <ModeMachineProvider>.
+ * Returns the ModeMachineV2 instance from the nearest <ModeMachineProvider>.
  * Must be called inside the provider's subtree.
  */
-export function useModeMachine(): ModeMachine {
+export function useModeMachine(): ModeMachineV2 {
   const machine = useContext(ModeMachineContext);
   if (!machine) {
     throw new Error('useModeMachine must be used inside <ModeMachineProvider>');
