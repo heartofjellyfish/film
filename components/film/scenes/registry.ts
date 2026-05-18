@@ -20,21 +20,36 @@
  */
 import type { SceneRegistration, TrackSlug } from '../types';
 import { SceneSeaRising } from './SceneSeaRising';
+import { SceneInMemory } from './SceneInMemory';
+import { SceneDream } from './SceneDream';
+import { SceneWaitWhy } from './SceneWaitWhy';
+import { SceneWakeUp } from './SceneWakeUp';
 import { SceneJellyHeart } from './SceneJellyHeart';
+import { SceneYouShallSee } from './SceneYouShallSee';
+import { SceneBelongsToSea } from './SceneBelongsToSea';
+import { SceneDayAfter } from './SceneDayAfter';
+import { SceneSeaRisen } from './SceneSeaRisen';
 
 // ---------------------------------------------------------------------------
 // Registry (declared statically — anchor order matches array order)
 // ---------------------------------------------------------------------------
 
 /**
- * Prototype phase: only scenes #1 (Sea Rising) and #6 (The Heart of the Jellyfish)
- * are registered. The 8 other scenes ship with the production version.
- *
- * Anchor values MUST be strictly increasing; the test suite verifies this.
+ * All 10 scenes registered per master design §4.5 (SceneRegistry v2).
+ * Anchors are strictly increasing; the test suite verifies this.
+ * Depth windows form a non-overlapping cover of [0, 1].
  */
 export const SCENE_REGISTRY: ReadonlyArray<SceneRegistration> = [
-  { slug: 'i_sea_rising', anchor: 0.05, component: SceneSeaRising },
-  { slug: 'vi_heart', anchor: 0.55, component: SceneJellyHeart },
+  { slug: 'i_sea_rising',       anchor: 0.05, component: SceneSeaRising },
+  { slug: 'ii_in_memory',       anchor: 0.13, component: SceneInMemory },
+  { slug: 'iii_dream',          anchor: 0.21, component: SceneDream },
+  { slug: 'iv_wait',            anchor: 0.32, component: SceneWaitWhy },
+  { slug: 'v_wake_up',          anchor: 0.44, component: SceneWakeUp },
+  { slug: 'vi_heart',           anchor: 0.55, component: SceneJellyHeart },
+  { slug: 'vii_you_shall_see',  anchor: 0.68, component: SceneYouShallSee },
+  { slug: 'viii_belongs_to_sea',anchor: 0.80, component: SceneBelongsToSea },
+  { slug: 'ix_day_after',       anchor: 0.90, component: SceneDayAfter },
+  { slug: 'x_sea_risen',        anchor: 0.97, component: SceneSeaRisen },
 ] as const;
 
 // ---------------------------------------------------------------------------

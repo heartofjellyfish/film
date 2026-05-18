@@ -98,10 +98,10 @@ describe('computeHeartBeat', () => {
 });
 
 describe('SCENE_JELLY_HEART_DEPTH_RANGE', () => {
-  it('covers [0.50, 0.85] — extended for full fade-out window (spec Gap F)', () => {
-    // Anchor remains at 0.55; range extended so d=0.65-0.85 is used for fade-out.
+  it('covers [0.50, 0.62) — master design §4.5 range', () => {
+    // Anchor at 0.55; scene exits at 0.62 where SceneYouShallSee (#7) takes over.
     expect(SCENE_JELLY_HEART_DEPTH_RANGE[0]).toBeCloseTo(0.5, 5);
-    expect(SCENE_JELLY_HEART_DEPTH_RANGE[1]).toBeCloseTo(0.85, 5);
+    expect(SCENE_JELLY_HEART_DEPTH_RANGE[1]).toBeCloseTo(0.62, 5);
   });
 });
 
@@ -112,7 +112,7 @@ describe('HEART_BPM_DEFAULT', () => {
 });
 
 // ---------------------------------------------------------------------------
-// computeFadeOut — spec Gap F (depth range extended to 0.85 with fade-out)
+// computeFadeOut — scene range [0.50, 0.62); fade window [0.58, 0.62]
 // ---------------------------------------------------------------------------
 
 describe('computeFadeOut', () => {
@@ -120,27 +120,27 @@ describe('computeFadeOut', () => {
     expect(computeFadeOut(0.50)).toBeCloseTo(1.0, 5);
   });
 
-  it('d=0.65 → 1.0 (still fully visible, fade starts at 0.70)', () => {
-    expect(computeFadeOut(0.65)).toBeCloseTo(1.0, 5);
+  it('d=0.55 → 1.0 (still fully visible, fade starts at 0.58)', () => {
+    expect(computeFadeOut(0.55)).toBeCloseTo(1.0, 5);
   });
 
-  it('d=0.70 → 1.0 (fade start boundary)', () => {
-    expect(computeFadeOut(0.70)).toBeCloseTo(1.0, 5);
+  it('d=0.58 → 1.0 (fade start boundary)', () => {
+    expect(computeFadeOut(0.58)).toBeCloseTo(1.0, 5);
   });
 
-  it('d=0.775 → ≈0.5 (smoothstep midpoint at (0.70+0.85)/2)', () => {
-    // t = (0.775 - 0.70) / (0.85 - 0.70) = 0.075/0.15 = 0.5
+  it('d=0.60 → ≈0.5 (smoothstep midpoint at (0.58+0.62)/2)', () => {
+    // t = (0.60 - 0.58) / (0.62 - 0.58) = 0.02/0.04 = 0.5
     // smoothstep(0.5) = 0.5·0.5·(3-2·0.5) = 0.25 · 2 = 0.5
     // fadeOut = 1 - 0.5 = 0.5
-    expect(computeFadeOut(0.775)).toBeCloseTo(0.5, 3);
+    expect(computeFadeOut(0.60)).toBeCloseTo(0.5, 3);
   });
 
-  it('d=0.85 → 0.0 (fully transparent at end of range)', () => {
-    expect(computeFadeOut(0.85)).toBeCloseTo(0.0, 5);
+  it('d=0.62 → 0.0 (fully transparent at end of range)', () => {
+    expect(computeFadeOut(0.62)).toBeCloseTo(0.0, 5);
   });
 
-  it('d=0.90 → 0.0 (clamped — past the fade end)', () => {
-    expect(computeFadeOut(0.90)).toBeCloseTo(0.0, 5);
+  it('d=0.70 → 0.0 (clamped — past the fade end)', () => {
+    expect(computeFadeOut(0.70)).toBeCloseTo(0.0, 5);
   });
 
   it('stays in [0, 1] over the full d range [0, 1]', () => {

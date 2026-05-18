@@ -3,7 +3,7 @@
 /**
  * SceneJellyHeart — frame `vi. The Heart of the Jellyfish`.
  *
- * Active depth window: [0.50, 0.65].
+ * Active depth window: [0.50, 0.62).
  *
  * Visual goal (spec §6): camera sits inside a jellyfish bell; a warm
  * translucent membrane wraps the view like Rothko stained glass; in the
@@ -48,8 +48,8 @@ import { useTweakRef } from '../TweakStore';
 // Constants and pure helpers (testable without R3F)
 // ---------------------------------------------------------------------------
 
-/** Depth window in which this scene is active (extended to 0.85 — spec Gap F). */
-export const SCENE_JELLY_HEART_DEPTH_RANGE: readonly [number, number] = [0.5, 0.85];
+/** Depth window in which this scene is active (master design §4.5 range). */
+export const SCENE_JELLY_HEART_DEPTH_RANGE: readonly [number, number] = [0.5, 0.62];
 
 /** Heart resting BPM — fixed for prototype; will sync to track tempo later. */
 export const HEART_BPM_DEFAULT = 75;
@@ -82,21 +82,18 @@ export function computeHeartBeat(
 }
 
 /**
- * Fade-out multiplier for d ∈ [0.70, 0.85] (spec Gap F).
+ * Fade-out multiplier for d ∈ [0.58, 0.62] (scene range [0.50, 0.62)).
  *
- * d ≤ 0.70 → 1.0  (fully visible)
- * d = 0.70 → 1.0  (fade starts)
- * d = 0.77 → ≈0.5 (halfway)
- * d ≥ 0.85 → 0.0  (completely transparent / invisible)
+ * d ≤ 0.58 → 1.0  (fully visible)
+ * d = 0.58 → 1.0  (fade starts)
+ * d = 0.60 → ≈0.5 (halfway)
+ * d ≥ 0.62 → 0.0  (completely transparent / invisible; scene ends here)
  *
- * Uses smoothstep for a perceptually smooth fade.
- * NOTE: smoothstep(0.85, 0.70, d) is the reverse direction.
+ * Uses smoothstep for a perceptually smooth exit as SceneYouShallSee (#7) takes over.
  */
 export function computeFadeOut(d: number): number {
-  // THREE.MathUtils.smoothstep(x, min, max) clamps x to [min,max] then applies
-  // smoothstep. We want 1 at d=0.70 and 0 at d=0.85, so we reverse the range.
-  // Equivalent: 1 - smoothstep(d, 0.70, 0.85)
-  const t = Math.max(0, Math.min(1, (d - 0.70) / (0.85 - 0.70)));
+  // Smoothstep from 1→0 over [0.58, 0.62].
+  const t = Math.max(0, Math.min(1, (d - 0.58) / (0.62 - 0.58)));
   return 1 - t * t * (3 - 2 * t); // smoothstep formula
 }
 
@@ -128,7 +125,7 @@ function Heart({
     const beat = Math.sin((t * Math.PI * 2) / period);
     const pulse = 0.5 + 0.5 * Math.pow(Math.max(0, beat), 2);
     meshRef.current.scale.setScalar(1 + pulse * pulseScale);
-    // Apply fade-out in d ∈ [0.70, 0.85] so heart disappears before EndCard (Gap F).
+    // Apply fade-out in d ∈ [0.58, 0.62] so heart exits as SceneYouShallSee (#7) takes over.
     const fadeOut = computeFadeOut(depthRef.current);
     matRef.current.emissiveIntensity = (heartEmissiveBase + pulse * heartEmissiveRange) * fadeOut;
   });
@@ -186,7 +183,7 @@ function Membrane({
     // Live-update tweakable uniforms from TweakStore.
     const { membraneFresnelPower, membraneAlphaInner, membraneAlphaEdge } = tweakRef.current;
     matRef.current.uniforms.uFresnelPower.value = membraneFresnelPower;
-    // Apply fade-out in d ∈ [0.70, 0.85] so membrane disappears before EndCard (Gap F).
+    // Apply fade-out in d ∈ [0.58, 0.62] so membrane exits as SceneYouShallSee (#7) takes over.
     const fadeOut = computeFadeOut(depthRef.current);
     matRef.current.uniforms.uAlphaInner.value = membraneAlphaInner * fadeOut;
     matRef.current.uniforms.uAlphaEdge.value = membraneAlphaEdge * fadeOut;
@@ -314,7 +311,7 @@ function ActiveWindowGate({
   useFrame(() => {
     const d = depthRef.current;
     const inside =
-      d >= SCENE_JELLY_HEART_DEPTH_RANGE[0] && d <= SCENE_JELLY_HEART_DEPTH_RANGE[1];
+      d >= SCENE_JELLY_HEART_DEPTH_RANGE[0] && d < SCENE_JELLY_HEART_DEPTH_RANGE[1];
     activeRef.current = inside;
 
     if (inside) {
@@ -396,12 +393,12 @@ export function SceneJellyHeart({ depthRef }: SceneProps) {
 
         {/* Membrane luminance peaks ~0.65 (alpha-blended over outer sea), below
             the bloom threshold of 1.0, so it stays out of the glow by physics.
-            depthRef passed for fade-out in d ∈ [0.70, 0.85] (Gap F). */}
+            depthRef passed for fade-out in d ∈ [0.58, 0.62]. */}
         <Membrane activeRef={activeRef} depthRef={depthRef} />
       </group>
 
       <group ref={heartGroupRef} visible={false}>
-        {/* depthRef passed for fade-out in d ∈ [0.70, 0.85] (Gap F). */}
+        {/* depthRef passed for fade-out in d ∈ [0.58, 0.62]. */}
         <Heart activeRef={activeRef} depthRef={depthRef} />
       </group>
 
