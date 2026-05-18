@@ -64,8 +64,15 @@ export type TrackManifest = Partial<Record<TrackSlug, TrackEntry>>;
 // ---------------------------------------------------------------------------
 
 export type SceneEvent =
-  | { type: 'engulfment' }             // Scene i: water surface passes camera
-  | { type: 'heart-beat'; bpm: number }; // Scene vi: beat debug info
+  | { type: 'engulfment' }                       // Scene i: water surface passes camera
+  | { type: 'heart-beat'; bpm: number }          // Scene vi: beat debug info
+  | { type: 'heartbeat-start' }                  // #4: first heartbeat enters
+  | { type: 'hard-cut-incoming' }                // #5: ~0.3s warning before hard cut
+  | { type: 'hard-cut-execute' }                 // #5: hard cut instant
+  | { type: 'flash-cut-burst'; index: number }   // #7: each flash cut slice
+  | { type: 'final-pulse-start' }                // #10: post-new-sea camera pulse
+  | { type: 'mirror-recursion-start' }           // #4: enter active mirror state
+  | { type: 'mirror-recursion-end' };
 
 export interface SceneProps {
   depthRef: MutableRefObject<number>;

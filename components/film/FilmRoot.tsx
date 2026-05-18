@@ -52,8 +52,9 @@ import { AudioProvider } from './AudioContext';
 import { SoundToggle } from './SoundToggle';
 import { TweakProvider } from './TweakStore';
 import { CameraController } from './CameraController';
-import { createAudioSubsystem, type AudioSubsystem } from './audio/AudioManager';
+import { createAudioSubsystem, type AudioSubsystemV2 } from './audio/AudioManager';
 import { TRACKS } from './audio/manifest';
+import { routeDramaEvent } from './drama';
 import type { EnvCapabilities, SceneEvent, TrackSlug } from './types';
 
 // Dynamic import: leva never enters the main bundle unless ?tweak=1.
@@ -132,7 +133,7 @@ function EndCardWatcher() {
 
 interface FilmInnerProps {
   query: FilmRootQuery;
-  audio: AudioSubsystem;
+  audio: AudioSubsystemV2;
   showCeremony: boolean;
   onStart: () => void;
 }
@@ -143,11 +144,9 @@ function FilmInner({ query, audio, showCeremony, onStart }: FilmInnerProps) {
 
   const handleSceneEvent = useCallback(
     (event: SceneEvent) => {
-      if (event.type === 'engulfment') {
-        audio.setLowPassCutoff(250, 500);
-      }
+      routeDramaEvent(event, { audio, machine });
     },
-    [audio],
+    [audio, machine],
   );
 
   return (
