@@ -8,7 +8,7 @@
  *   - Timers: vi.useFakeTimers for crossfade timeout tests
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createAudioSubsystem, chooseUrl, isPlaceholderUrl } from './AudioManager';
+import { createAudioSubsystem, chooseUrl, isPlaceholderUrl, resolveUrl } from './AudioManager';
 import { createMockModeMachine } from '../__fixtures__/modeMachine';
 import type { TrackManifest } from '../types';
 
@@ -19,13 +19,20 @@ import type { TrackManifest } from '../types';
 function makeMockCtx() {
   // Each gain/filter/source node needs its own mock so we can track calls.
   const makeGainNode = () => ({
-    gain: { value: 1, linearRampToValueAtTime: vi.fn() },
+    gain: {
+      value: 1,
+      linearRampToValueAtTime: vi.fn(),
+      cancelScheduledValues: vi.fn(),
+      setValueAtTime: vi.fn(),
+    },
     connect: vi.fn().mockReturnThis(),
   });
 
   const makeFilterNode = () => ({
     type: '' as BiquadFilterType,
     frequency: { value: 20000, linearRampToValueAtTime: vi.fn() },
+    Q: { value: 1 },
+    gain: { value: 0, linearRampToValueAtTime: vi.fn() },
     connect: vi.fn().mockReturnThis(),
   });
 
@@ -562,6 +569,84 @@ describe('createAudioSubsystem', () => {
     expect(mockCtx.createBiquadFilter).not.toHaveBeenCalled();
   });
 
+  // ── setHeartbeatAccent ───────────────────────────────────────────────────
+  it('setHeartbeatAccent(6, 1000) ramps heartbeatAccent gain to 6 over 1s', async () => {
+    const machine = createMockModeMachine({ mode: 'auto' });
+    const audio = createAudioSubsystem({
+      modeMachine: machine,
+      envProbe: { isMobile: false, autoplayBlocked: false },
+      manifest: TEST_MANIFEST,
+      reportAutoplayBlocked,
+    });
+
+    await audio.start();
+
+    // heartbeatAccent is the second BiquadFilter created (index 1)
+    const heartbeatMock = mockCtx.createBiquadFilter.mock.results[1]!.value as ReturnType<
+      ReturnType<typeof makeMockCtx>['createBiquadFilter']
+    >;
+
+    audio.setHeartbeatAccent(6, 1000);
+
+    // ctx.currentTime = 0, durationMs = 1000 → 0 + 1000/1000 = 1.0
+    expect(heartbeatMock.gain.linearRampToValueAtTime).toHaveBeenCalledWith(6, 1.0);
+  });
+
+  it('setHeartbeatAccent is a no-op on mobile (no heartbeatAccent node)', async () => {
+    const machine = createMockModeMachine({ mode: 'auto' });
+    const audio = createAudioSubsystem({
+      modeMachine: machine,
+      envProbe: { isMobile: true, autoplayBlocked: false },
+      manifest: TEST_MANIFEST,
+      reportAutoplayBlocked,
+    });
+
+    await audio.start();
+
+    // Must not throw; heartbeatAccent is null on mobile
+    expect(() => audio.setHeartbeatAccent(6, 1000)).not.toThrow();
+    expect(mockCtx.createBiquadFilter).not.toHaveBeenCalled();
+  });
+
+  // ── triggerHardCutSilence ────────────────────────────────────────────────
+  it('triggerHardCutSilence(500) cancels scheduled values, sets 0, then ramps to 0.8', async () => {
+    const machine = createMockModeMachine({ mode: 'auto' });
+    const audio = createAudioSubsystem({
+      modeMachine: machine,
+      envProbe: { isMobile: false, autoplayBlocked: false },
+      manifest: TEST_MANIFEST,
+      reportAutoplayBlocked,
+    });
+
+    await audio.start();
+
+    const masterGainMock = mockCtx.createGain.mock.results[0]!.value as ReturnType<
+      ReturnType<typeof makeMockCtx>['createGain']
+    >;
+
+    audio.triggerHardCutSilence(500);
+
+    // cancelScheduledValues called at currentTime=0
+    expect(masterGainMock.gain.cancelScheduledValues).toHaveBeenCalledWith(0);
+    // setValueAtTime to 0 immediately
+    expect(masterGainMock.gain.setValueAtTime).toHaveBeenCalledWith(0, 0);
+    // linearRamp back to 0.8 over 500ms = 0.5s
+    expect(masterGainMock.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.8, 0.5);
+  });
+
+  it('triggerHardCutSilence is a no-op before start()', () => {
+    const machine = createMockModeMachine({ mode: 'auto' });
+    const audio = createAudioSubsystem({
+      modeMachine: machine,
+      envProbe: { isMobile: false, autoplayBlocked: false },
+      manifest: TEST_MANIFEST,
+      reportAutoplayBlocked,
+    });
+
+    // Must not throw before start()
+    expect(() => audio.triggerHardCutSilence(500)).not.toThrow();
+  });
+
   // ── mode-changed: same-URL → no re-fetch (dedup); different-URL → re-fetch ─
   it('mode-changed re-fetches only when the resolved URL changes', async () => {
     // With "full preferred whenever present" + single-soundtrack manifest, mode
@@ -618,5 +703,36 @@ describe('createAudioSubsystem', () => {
     m2.fire({ type: 'mode-changed', from: 'scroll', to: 'listen' });
     await vi.runAllTimersAsync();
     expect(f1.mock.calls.length).toBeGreaterThan(before2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveUrl pure function tests
+// ---------------------------------------------------------------------------
+
+describe('resolveUrl', () => {
+  afterEach(() => {
+    // Restore process.env after each test
+    delete process.env['NEXT_PUBLIC_AUDIO_CDN'];
+  });
+
+  it('returns the path unchanged when CDN env is not set', () => {
+    delete process.env['NEXT_PUBLIC_AUDIO_CDN'];
+    expect(resolveUrl('/audio/tracks/foo.mp3')).toBe('/audio/tracks/foo.mp3');
+  });
+
+  it('prefixes CDN_BASE when env is set and path starts with /audio/tracks/', () => {
+    process.env['NEXT_PUBLIC_AUDIO_CDN'] = 'https://cdn.example.com';
+    expect(resolveUrl('/audio/tracks/foo.mp3')).toBe('https://cdn.example.com/audio/tracks/foo.mp3');
+  });
+
+  it('does NOT prefix CDN_BASE for placeholder paths (always local)', () => {
+    process.env['NEXT_PUBLIC_AUDIO_CDN'] = 'https://cdn.example.com';
+    expect(resolveUrl('/audio/placeholder/ambient_ocean.wav')).toBe('/audio/placeholder/ambient_ocean.wav');
+  });
+
+  it('does NOT prefix CDN_BASE for entry sound paths (always local)', () => {
+    process.env['NEXT_PUBLIC_AUDIO_CDN'] = 'https://cdn.example.com';
+    expect(resolveUrl('/audio/entry/vinyl_pop.wav')).toBe('/audio/entry/vinyl_pop.wav');
   });
 });

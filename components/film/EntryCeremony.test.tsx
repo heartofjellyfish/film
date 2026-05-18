@@ -8,9 +8,9 @@
  * Uses @testing-library/react with fireEvent.pointerDown, which is the
  * same synthetic event path as a real pointer interaction.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
-import { EntryCeremony } from './EntryCeremony';
+import { EntryCeremony, VINYL_POP_VOLUME } from './EntryCeremony';
 
 // ---------------------------------------------------------------------------
 // Test 1 — single click calls onStart exactly once
@@ -20,6 +20,10 @@ describe('EntryCeremony', () => {
 
   beforeEach(() => {
     onStart = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('calls onStart exactly once on a single pointerDown', () => {
@@ -112,5 +116,62 @@ describe('EntryCeremony', () => {
     fireEvent.pointerDown(screen.getByText(/Press anywhere/));
 
     expect(overlay.className).toContain('entry--fading');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 8 — vinyl pop: Audio.play() called with correct volume
+  // -------------------------------------------------------------------------
+  it('calls Audio.play() with vinylPopUrl and volume=VINYL_POP_VOLUME on pointerDown', () => {
+    const playMock = vi.fn().mockResolvedValue(undefined);
+    const AudioMock = vi.fn(() => ({
+      play: playMock,
+      volume: 1,
+    }));
+    vi.stubGlobal('Audio', AudioMock);
+
+    render(<EntryCeremony onStart={onStart} vinylPopUrl="/audio/entry/vinyl_pop.wav" />);
+    fireEvent.pointerDown(screen.getByText(/Press anywhere/));
+
+    expect(AudioMock).toHaveBeenCalledWith('/audio/entry/vinyl_pop.wav');
+    // volume is set before play(); check the instance
+    const audioInstance = AudioMock.mock.results[0]!.value as { volume: number; play: () => void };
+    expect(audioInstance.volume).toBe(VINYL_POP_VOLUME);
+    expect(playMock).toHaveBeenCalledOnce();
+
+    vi.unstubAllGlobals();
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 9 — vinyl pop: play() failure does not throw (catches error silently)
+  // -------------------------------------------------------------------------
+  it('does not throw when Audio.play() rejects (autoplay policy)', () => {
+    const playMock = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+    const AudioMock = vi.fn(() => ({
+      play: playMock,
+      volume: 1,
+    }));
+    vi.stubGlobal('Audio', AudioMock);
+
+    render(<EntryCeremony onStart={onStart} />);
+
+    // Must not throw even when play() rejects
+    expect(() => fireEvent.pointerDown(screen.getByText(/Press anywhere/))).not.toThrow();
+
+    vi.unstubAllGlobals();
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 10 — no vinyl pop when vinylPopUrl is empty string
+  // -------------------------------------------------------------------------
+  it('does not call Audio constructor when vinylPopUrl is empty string', () => {
+    const AudioMock = vi.fn();
+    vi.stubGlobal('Audio', AudioMock);
+
+    render(<EntryCeremony onStart={onStart} vinylPopUrl="" />);
+    fireEvent.pointerDown(screen.getByText(/Press anywhere/));
+
+    expect(AudioMock).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
   });
 });

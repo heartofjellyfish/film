@@ -5,6 +5,28 @@ import { describe, it, expect } from 'vitest';
 import { TRACKS } from './manifest';
 
 describe('TRACKS manifest', () => {
+  it('has exactly 10 entries (all 10 scenes per master design §4.5)', () => {
+    expect(Object.keys(TRACKS)).toHaveLength(10);
+  });
+
+  it('contains all 10 scene slugs from SCENE_REGISTRY (§3.5 red line #4)', () => {
+    const expectedSlugs = [
+      'i_sea_rising',
+      'ii_in_memory',
+      'iii_dream',
+      'iv_wait',
+      'v_wake_up',
+      'vi_heart',
+      'vii_you_shall_see',
+      'viii_belongs_to_sea',
+      'ix_day_after',
+      'x_sea_risen',
+    ];
+    for (const slug of expectedSlugs) {
+      expect(TRACKS, `TRACKS should contain slug "${slug}"`).toHaveProperty(slug);
+    }
+  });
+
   it('every entry has a non-empty placeholder (required field)', () => {
     for (const [slug, entry] of Object.entries(TRACKS)) {
       expect(entry, `${slug} is missing from TRACKS`).toBeDefined();

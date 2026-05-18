@@ -165,11 +165,21 @@ describe('getAllAnchors', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Cross-module consistency with audio manifest — deferred to task 12d.
+// Cross-module consistency with audio manifest — restored in task 12d.
 // ---------------------------------------------------------------------------
 describe('cross-module consistency', () => {
   // Enforces the §3.5 / red line #4 contract:
   //   SCENE_REGISTRY slugs ⊆ TRACKS keys, each with a non-empty placeholder.
-  // Re-enable after task 12d extends TRACKS to all 10 scenes.
-  it.todo('SCENE_REGISTRY ⊆ TRACKS keys (re-enable after task 12d extends TRACKS)');
+  // Task 12d extended TRACKS to all 10 scenes — this invariant now holds.
+  it('SCENE_REGISTRY ⊆ TRACKS keys — every scene slug has a manifest entry with a placeholder', async () => {
+    const { TRACKS } = await import('../audio/manifest');
+    for (const entry of SCENE_REGISTRY) {
+      const trackEntry = TRACKS[entry.slug];
+      expect(trackEntry, `TRACKS["${entry.slug}"] must exist`).toBeDefined();
+      expect(
+        trackEntry!.placeholder,
+        `TRACKS["${entry.slug}"].placeholder must be non-empty`,
+      ).toBeTruthy();
+    }
+  });
 });

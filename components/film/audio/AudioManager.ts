@@ -22,6 +22,30 @@ import type { EnvCapabilities, Mode, ModeEvent, TrackSlug, TrackManifest } from 
 import type { ModeMachine } from '../ModeMachine';
 
 // ---------------------------------------------------------------------------
+// CDN URL resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Pure helper — resolves a manifest URL to its final fetch URL.
+ *
+ * CDN base is read from NEXT_PUBLIC_AUDIO_CDN at call-time so that tests
+ * can set/clear process.env between calls without module reimport.
+ *
+ * CDN prefix is only applied to `/audio/tracks/*` paths.
+ * Placeholder WAVs (`/audio/placeholder/*`) and entry sounds
+ * (`/audio/entry/*`) are always served locally (git-checked-in).
+ *
+ * Exported for unit tests.
+ */
+export function resolveUrl(manifestUrl: string): string {
+  const cdnBase = process.env['NEXT_PUBLIC_AUDIO_CDN'] ?? '';
+  if (cdnBase && manifestUrl.startsWith('/audio/tracks/')) {
+    return cdnBase + manifestUrl;
+  }
+  return manifestUrl;
+}
+
+// ---------------------------------------------------------------------------
 // Public interface
 // ---------------------------------------------------------------------------
 
@@ -38,6 +62,24 @@ export interface AudioSubsystem {
   setMuted(muted: boolean): void;
   getStatus(): { current: TrackSlug | null; volume: number; muted: boolean };
   dispose(): void;
+}
+
+/**
+ * AudioSubsystemV2 — extends AudioSubsystem with drama hooks.
+ *
+ * Exported for Task 12f (drama/index.ts) which imports this type.
+ */
+export interface AudioSubsystemV2 extends AudioSubsystem {
+  /**
+   * Apply temporary +Xdb gain accent over heartbeat-band frequencies (~60Hz).
+   * Used by drama events: heartbeat-start, mirror-recursion-start, final-pulse-start.
+   */
+  setHeartbeatAccent(intensityDb: number, durationMs: number): void;
+  /**
+   * Drop masterGain to 0 immediately, ramp back over durationMs.
+   * Used by #5 hard cut drama event.
+   */
+  triggerHardCutSilence(durationMs: number): void;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,13 +132,16 @@ export function isPlaceholderUrl(url: string): boolean {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
+export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystemV2 {
   const { modeMachine, envProbe, manifest, reportAutoplayBlocked } = deps;
 
   // -- AudioContext graph --
   let ctx: AudioContext | null = null;
   let masterGain: GainNode | null = null;
   let lowPass: BiquadFilterNode | null = null; // null on mobile
+  // heartbeatAccent: BiquadFilter peaking at 60Hz Q=2, default gain=0dB (transparent).
+  // Inserted between lowPass and masterGain on desktop. Drama events ramp its gain.
+  let heartbeatAccent: BiquadFilterNode | null = null; // null on mobile
 
   // -- Current playback node --
   let currentNode: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
@@ -127,7 +172,8 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
   // Buffer loading
   // ---------------------------------------------------------------------------
 
-  async function loadBuffer(url: string, signal: AbortSignal): Promise<AudioBuffer> {
+  async function loadBuffer(manifestUrl: string, signal: AbortSignal): Promise<AudioBuffer> {
+    const url = resolveUrl(manifestUrl);
     // Cache hit — no re-fetch needed.
     const cached = buffers.get(url);
     if (cached) return cached;
@@ -272,15 +318,23 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
       masterGain.gain.value = 0.8; // default audible; SoundToggle ramps to 0 if user mutes
 
       if (!envProbe.isMobile) {
-        // Desktop: include lowPass in the signal chain.
+        // Desktop: include lowPass + heartbeatAccent in the signal chain.
         lowPass = ctx.createBiquadFilter();
         lowPass.type = 'lowpass';
         lowPass.frequency.value = 20000; // default: no attenuation
 
-        // source(per-track) → lowPass → masterGain → destination
-        lowPass.connect(masterGain).connect(ctx.destination);
+        // heartbeatAccent: peaking EQ at 60Hz, Q=2, default gain=0dB (transparent).
+        // Drama events (heartbeat-start / mirror-recursion) ramp its gain.
+        heartbeatAccent = ctx.createBiquadFilter();
+        heartbeatAccent.type = 'peaking';
+        heartbeatAccent.frequency.value = 60;
+        heartbeatAccent.Q.value = 2;
+        heartbeatAccent.gain.value = 0; // 0dB = transparent
+
+        // source(per-track) → lowPass → heartbeatAccent → masterGain → destination
+        lowPass.connect(heartbeatAccent).connect(masterGain).connect(ctx.destination);
       } else {
-        // Mobile: skip lowPass entirely for performance.
+        // Mobile: skip lowPass and heartbeatAccent entirely for performance.
         // source(per-track) → masterGain → destination
         masterGain.connect(ctx.destination);
       }
@@ -317,6 +371,27 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
     };
   }
 
+  // ---------------------------------------------------------------------------
+  // Drama hooks (AudioSubsystemV2)
+  // ---------------------------------------------------------------------------
+
+  function setHeartbeatAccent(intensityDb: number, durationMs: number): void {
+    if (!heartbeatAccent || !ctx) return;
+    heartbeatAccent.gain.linearRampToValueAtTime(
+      intensityDb,
+      ctx.currentTime + durationMs / 1000,
+    );
+  }
+
+  function triggerHardCutSilence(durationMs: number): void {
+    if (!masterGain || !ctx) return;
+    const now = ctx.currentTime;
+    masterGain.gain.cancelScheduledValues(now);
+    masterGain.gain.setValueAtTime(0, now);        // immediate silence
+    const normalGain = muted ? 0 : 0.8;            // 0.8 = initial guess
+    masterGain.gain.linearRampToValueAtTime(normalGain, now + durationMs / 1000);
+  }
+
   function dispose(): void {
     unsubscribe?.();
     unsubscribe = null;
@@ -327,5 +402,13 @@ export function createAudioSubsystem(deps: AudioSubsystemDeps): AudioSubsystem {
     }
   }
 
-  return { start, setLowPassCutoff, setMuted, getStatus, dispose };
+  return {
+    start,
+    setLowPassCutoff,
+    setMuted,
+    getStatus,
+    dispose,
+    setHeartbeatAccent,
+    triggerHardCutSilence,
+  };
 }

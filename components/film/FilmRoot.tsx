@@ -153,7 +153,7 @@ function FilmInner({ query, audio, showCeremony, onStart }: FilmInnerProps) {
   return (
     <>
       {/* EntryCeremony stays visible for 650ms so its CSS fade-out plays */}
-      {showCeremony && <EntryCeremony onStart={onStart} />}
+      {showCeremony && <EntryCeremony onStart={onStart} vinylPopUrl="/audio/entry/vinyl_pop.wav" />}
 
       <Canvas
         data-testid="canvas"
@@ -312,7 +312,7 @@ export function FilmRoot() {
       <>
         {/* Scroll container — 400vh so ModeMachine has a scrollable surface (spec §4.5) */}
         <div style={{ minHeight: '400vh' }} aria-hidden="true" />
-        <EntryCeremony onStart={handleStart} />
+        <EntryCeremony onStart={handleStart} vinylPopUrl="/audio/entry/vinyl_pop.wav" />
       </>
     );
   }
