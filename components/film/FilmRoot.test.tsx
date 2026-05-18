@@ -319,6 +319,46 @@ describe('FilmRoot', () => {
 
     expect(mockAudioInstance.setLowPassCutoff).not.toHaveBeenCalled();
   });
+
+  // -------------------------------------------------------------------------
+  // Scenario 8: isMobile=true → after start, MobileGate appears, Canvas absent
+  // -------------------------------------------------------------------------
+  it('8. isMobile=true → MobileGate shown after start, Canvas not mounted', async () => {
+    mockCapabilities = { isMobile: true, webgl2: true, autoplayBlocked: false };
+
+    await renderFilmRoot();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('start'));
+    });
+
+    expect(screen.getByTestId('mobile-gate')).toBeTruthy();
+    expect(screen.queryByTestId('canvas')).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // Scenario 9: isMobile=true, click "Watch 90s" → Canvas mounts, MobileGate gone
+  // -------------------------------------------------------------------------
+  it('9. isMobile=true, click "Watch the 90-second cut" → Canvas mounts, MobileGate gone', async () => {
+    mockCapabilities = { isMobile: true, webgl2: true, autoplayBlocked: false };
+
+    await renderFilmRoot();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('start'));
+    });
+
+    // MobileGate is showing
+    expect(screen.getByTestId('mobile-gate')).toBeTruthy();
+
+    // Click the 90s button
+    await act(async () => {
+      fireEvent.click(screen.getByText('Watch the 90-second cut'));
+    });
+
+    expect(screen.queryByTestId('mobile-gate')).toBeNull();
+    expect(screen.getByTestId('canvas')).toBeTruthy();
+  });
 });
 
 // ---------------------------------------------------------------------------

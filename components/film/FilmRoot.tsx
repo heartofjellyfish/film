@@ -33,6 +33,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { MobileGate } from './MobileGate';
 import dynamic from 'next/dynamic';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
@@ -70,6 +71,7 @@ export interface FilmRootQuery {
   tweak: boolean;
   stats: boolean;
   focus?: TrackSlug;
+  forceMobile?: boolean;
 }
 
 /**
@@ -88,7 +90,9 @@ export function parseQuery(search: string): FilmRootQuery {
       ? (focusRaw as TrackSlug)
       : undefined;
 
-  return { tweak, stats, focus };
+  const forceMobile = params.get('forceMobile') === '1';
+
+  return { tweak, stats, focus, forceMobile };
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +203,9 @@ export function FilmRoot() {
 
   // showCeremony: stays true for 650ms after started to let CSS fade-out play
   const [showCeremony, setShowCeremony] = useState(true);
+
+  // mobileContinue90s: true when mobile user has chosen "Watch the 90-second cut"
+  const [mobileContinue90s, setMobileContinue90s] = useState(false);
 
   // Parse URL query params (stable for the page lifetime)
   const query = useMemo<FilmRootQuery>(
@@ -312,6 +319,14 @@ export function FilmRoot() {
 
   // Phase 3: film is running — all modules mounted
   // machine is guaranteed non-null here (capabilities is true → machine was created)
+
+  // Mobile check: EnvProbe detection OR ?forceMobile=1 debug override.
+  // Mobile visitors see MobileGate unless they've chosen "Watch the 90-second cut".
+  const isMobile = (capabilities.isMobile ?? false) || query.forceMobile === true;
+  if (isMobile && !mobileContinue90s) {
+    return <MobileGate onContinue90s={() => setMobileContinue90s(true)} />;
+  }
+
   return (
     <>
       {/* Scroll container — 400vh, no CSS scroll-snap, no Lenis (spec §4.5) */}
