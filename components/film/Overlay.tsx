@@ -24,6 +24,7 @@ import { CHAPTER_CARDS, type ChapterCardEntry } from './chapterCards';
 import { ChapterCard } from './ChapterCard';
 import { EndCard } from './EndCard';
 import { selectBilingualLayer } from './bilingual';
+import { useTweakRef } from './TweakStore';
 import type { ModeEvent, BilingualLayer } from './types';
 
 // Duration must match ChapterCard's CSS transition-duration (700ms) so the card
@@ -32,6 +33,7 @@ const FADE_OUT_MS = 700;
 
 export function Overlay() {
   const m = useModeMachine();
+  const tweakRef = useTweakRef();
 
   // null means no chapter card is currently shown.
   const [current, setCurrent] = useState<ChapterCardEntry | null>(null);
@@ -55,9 +57,15 @@ export function Overlay() {
         }
         const entry = CHAPTER_CARDS[e.slug];
         currentSlugRef.current = e.slug;
-        // Compute bilingual layer from depthRef at the moment the anchor is entered.
-        // This is discrete (per anchor event) — no per-frame re-renders.
-        setLayer(selectBilingualLayer(m.depthRef.current));
+        // Compute bilingual layer: honour tweakRef override when set, otherwise
+        // derive from depthRef at the moment the anchor is entered (discrete —
+        // no per-frame re-renders).
+        const layerOverride = tweakRef.current?.bilingualLayer;
+        const resolvedLayer: BilingualLayer =
+          layerOverride && layerOverride !== 'auto'
+            ? layerOverride
+            : selectBilingualLayer(m.depthRef.current);
+        setLayer(resolvedLayer);
         setCurrent(entry);
       }
 
@@ -87,8 +95,8 @@ export function Overlay() {
         clearTimeout(fadeOutTimerRef.current);
       }
     };
-    // m is stable for the lifetime of the Provider.
-  }, [m]);
+    // m and tweakRef are both stable for the lifetime of their Providers.
+  }, [m, tweakRef]);
 
   return (
     <div

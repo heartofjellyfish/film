@@ -32,7 +32,7 @@ import { button, useControls } from 'leva';
 import { Leva } from 'leva';
 import { useModeMachine } from './useModeMachine';
 import { useAudioSubsystem } from './AudioContext';
-import { useTweakRef, TWEAK_DEFAULTS } from './TweakStore';
+import { useTweakRef, TWEAK_DEFAULTS, DEFAULT_TWEAK_VALUES_V2 } from './TweakStore';
 
 export function TweakPanel() {
   // ─── Module references ───────────────────────────────────────────────────
@@ -276,6 +276,86 @@ export function TweakPanel() {
       step: 0.05,
       onChange: (v: number) => {
         tweakRef.current.toneExposure = v;
+      },
+    },
+  });
+
+  // ─── Debug v2 (#5 Bell / #4 Mirror / #10 Sun / #7 Flash) ─────────────────
+  // bellOpenness, mirrorIntensity, sunElevationOverride, flashCutForcedShot:
+  //   dormant sliders — stored in tweakRef but not yet consumed by any scene.
+  //   wired in task 15-18 once SceneSeaRisen / SceneYouShallSee / SceneWakeUp /
+  //   SceneWaitWhy are implemented.
+  useControls('Debug v2', {
+    bellOpenness: {
+      // debug #5 — bell-shape openness (0=closed, 1=fully open); wired in task 15-18
+      value: DEFAULT_TWEAK_VALUES_V2.bellOpenness,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      onChange: (v: number) => {
+        tweakRef.current.bellOpenness = v;
+      },
+    },
+    mirrorIntensity: {
+      // debug #4 — mirror recursion post-process intensity; wired in task 15-18
+      value: DEFAULT_TWEAK_VALUES_V2.mirrorIntensity,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      onChange: (v: number) => {
+        tweakRef.current.mirrorIntensity = v;
+      },
+    },
+    sunElevationOverride: {
+      // debug #10 — override sun elevation (deg); -1 = compute from real countdown; wired in task 15-18
+      value: DEFAULT_TWEAK_VALUES_V2.sunElevationOverride,
+      min: -1,
+      max: 90,
+      step: 1,
+      onChange: (v: number) => {
+        tweakRef.current.sunElevationOverride = v;
+      },
+    },
+    flashCutForcedShot: {
+      // debug #7 — force a specific flash-cut frame; null = auto-sequence; wired in task 15-18
+      value: DEFAULT_TWEAK_VALUES_V2.flashCutForcedShot ?? 'null',
+      options: [
+        'null',
+        'rothko-red',
+        'rothko-blue',
+        'rothko-black',
+        'pure-white',
+        'earth-from-space',
+        'nebula',
+        'family-portrait',
+        'jellyfish-bloom',
+      ],
+      onChange: (v: string) => {
+        tweakRef.current.flashCutForcedShot = v === 'null' ? null : v;
+      },
+    },
+  });
+
+  // ─── Overlay ─────────────────────────────────────────────────────────────
+  useControls('Overlay', {
+    bilingualLayer: {
+      // Override Overlay bilingual layer; 'auto' = depth-computed by selectBilingualLayer
+      value: DEFAULT_TWEAK_VALUES_V2.bilingualLayer,
+      options: ['auto', 'en-emphasis', 'balanced', 'zh-emphasis'],
+      onChange: (v: string) => {
+        // Cast is safe: the options list exactly matches BilingualLayer | 'auto'
+        (tweakRef.current as { bilingualLayer: string }).bilingualLayer = v;
+      },
+    },
+    autoEasePreset: {
+      // Dev toggle: 'default' = piecewise ease; 'linear' = linear fallback
+      // NOTE: slider is dormant — not yet wired to ModeMachine.
+      // Phase 2 connects via setAutoEase(machine, ease).
+      value: DEFAULT_TWEAK_VALUES_V2.autoEasePreset,
+      options: ['default', 'linear'],
+      onChange: (v: string) => {
+        // Cast is safe: options exactly match 'default' | 'linear'
+        (tweakRef.current as { autoEasePreset: string }).autoEasePreset = v;
       },
     },
   });

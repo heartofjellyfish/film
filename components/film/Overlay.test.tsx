@@ -1,14 +1,18 @@
 /**
- * Overlay — 7 test scenarios per detailed design §2.6 table, plus bilingual layer test.
+ * Overlay — 7 test scenarios per detailed design §2.6 table, plus bilingual layer tests.
  *
  * Mock strategy: vi.mock replaces useModeMachine so every render of Overlay
  * uses the same createMockModeMachine instance. Events are fired via
  * mockMachine.fire() and state updates are wrapped in act().
+ *
+ * TweakStore mock: vi.mock replaces useTweakRef so tests can inject a specific
+ * tweakRef.current.bilingualLayer override value.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { Overlay } from './Overlay';
 import { createMockModeMachine } from './__fixtures__/modeMachine';
+import { DEFAULT_TWEAK_VALUES_V2, type TweakValuesV2 } from './TweakStore';
 
 // ---------------------------------------------------------------------------
 // Module mock — replace useModeMachine with the fixture
@@ -23,12 +27,29 @@ vi.mock('./useModeMachine', () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// TweakStore mock — replace useTweakRef with a controllable ref
+// ---------------------------------------------------------------------------
+
+// Mutable so individual tests can set bilingualLayer override.
+let mockTweakValues: TweakValuesV2;
+
+vi.mock('./TweakStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./TweakStore')>();
+  return {
+    ...actual,
+    useTweakRef: () => ({ current: mockTweakValues }),
+  };
+});
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 describe('Overlay', () => {
   beforeEach(() => {
     mockMachine = createMockModeMachine();
+    // Default: 'auto' — no override, depth-computed bilingual layer
+    mockTweakValues = { ...DEFAULT_TWEAK_VALUES_V2 };
   });
 
   it('1. mounts with no events → renders no chapter card and no end card', () => {
@@ -179,5 +200,45 @@ describe('Overlay', () => {
     // en-emphasis: en opacity=0.9, zh opacity=0.4
     expect(enSpan.style.opacity).toBe('0.9');
     expect(zhSpan.style.opacity).toBe('0.4');
+  });
+
+  // ── Task 14: bilingualLayer override tests ─────────────────────────────────
+
+  it('10. tweakRef.bilingualLayer=en-emphasis overrides depth-computed layer (depth=0.55 → normally zh-emphasis)', async () => {
+    // depth=0.55 would normally yield zh-emphasis via selectBilingualLayer,
+    // but tweakRef override forces en-emphasis.
+    mockMachine = createMockModeMachine({ depth: 0.55 });
+    mockTweakValues = { ...DEFAULT_TWEAK_VALUES_V2, bilingualLayer: 'en-emphasis' };
+
+    render(<Overlay />);
+
+    await act(async () => {
+      mockMachine.fire({ type: 'anchor-entered', slug: 'vi_heart', anchor: 0.55 });
+    });
+
+    const enSpan = screen.getByTestId('chapter-card-en');
+    const zhSpan = screen.getByTestId('chapter-card-zh');
+    // en-emphasis (forced by override): en opacity=0.9, zh opacity=0.4
+    expect(enSpan.style.opacity).toBe('0.9');
+    expect(zhSpan.style.opacity).toBe('0.4');
+  });
+
+  it("11. tweakRef.bilingualLayer='auto' falls back to selectBilingualLayer (depth=0.55 → zh-emphasis)", async () => {
+    // 'auto' means: no override — use selectBilingualLayer(depthRef.current).
+    // depth=0.55 is in the zh-emphasis zone (0.50 < 0.55 <= 0.62).
+    mockMachine = createMockModeMachine({ depth: 0.55 });
+    mockTweakValues = { ...DEFAULT_TWEAK_VALUES_V2, bilingualLayer: 'auto' };
+
+    render(<Overlay />);
+
+    await act(async () => {
+      mockMachine.fire({ type: 'anchor-entered', slug: 'vi_heart', anchor: 0.55 });
+    });
+
+    const zhSpan = screen.getByTestId('chapter-card-zh');
+    const enSpan = screen.getByTestId('chapter-card-en');
+    // zh-emphasis (from selectBilingualLayer at depth=0.55): zh opacity=0.9, en opacity=0.4
+    expect(zhSpan.style.opacity).toBe('0.9');
+    expect(enSpan.style.opacity).toBe('0.4');
   });
 });

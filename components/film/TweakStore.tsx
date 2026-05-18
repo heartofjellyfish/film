@@ -36,6 +36,7 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from 'react';
+import type { BilingualLayer } from './types';
 
 // ---------------------------------------------------------------------------
 // Value shape — all tweakable visual parameters in one flat object.
@@ -74,6 +75,30 @@ export interface TweakValues {
   // Lighting (§5.5 / §6.6)
   ambientIntensity: number;
   directionalIntensity: number;
+}
+
+// ---------------------------------------------------------------------------
+// TweakValuesV2 — extends TweakValues with 6 new debug fields (task 14).
+// ---------------------------------------------------------------------------
+
+/**
+ * Extended tweak value shape for v2 TweakPanel.
+ *
+ * New fields:
+ *   bellOpenness         — 0..1 bell-shape openness debug (#5); wired in task 15-18
+ *   mirrorIntensity      — 0..1 mirror post-process intensity (#4); wired in task 15-18
+ *   sunElevationOverride — -1..90 deg; -1 = compute from real countdown time; wired in task 15-18
+ *   flashCutForcedShot   — null = auto-sequence; named shot = force that frame; wired in task 15-18
+ *   bilingualLayer       — 'auto' = depth-computed; named layer = force Overlay immediately
+ *   autoEasePreset       — 'default' = piecewise ease; 'linear' = linear fallback (Phase 2 wire)
+ */
+export interface TweakValuesV2 extends TweakValues {
+  bellOpenness: number;                              // 0..1, debug #5; wired in task 15-18
+  mirrorIntensity: number;                           // 0..1, debug #4 post-process; wired in task 15-18
+  sunElevationOverride: number;                      // -1..90, -1 = no override; wired in task 15-18
+  flashCutForcedShot: string | null;                 // null = auto; wired in task 15-18
+  bilingualLayer: BilingualLayer | 'auto';           // 'auto' = depth-computed
+  autoEasePreset: 'default' | 'linear';              // dev toggle; Phase 2 wired via setAutoEase(machine, ease)
 }
 
 // ---------------------------------------------------------------------------
@@ -116,21 +141,38 @@ export const TWEAK_DEFAULTS: TweakValues = {
 };
 
 // ---------------------------------------------------------------------------
+// DEFAULT_TWEAK_VALUES_V2 — all v2 new fields start dormant / 'auto'.
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_TWEAK_VALUES_V2: TweakValuesV2 = {
+  // Inherit all prototype defaults
+  ...TWEAK_DEFAULTS,
+  // v2 new fields — defaults leave all features inactive / dormant
+  bellOpenness: 0,            // dormant; wired in task 15-18
+  mirrorIntensity: 0,         // dormant; wired in task 15-18
+  sunElevationOverride: -1,   // -1 sentinel = compute from real countdown time; wired in task 15-18
+  flashCutForcedShot: null,   // null = auto-sequence; wired in task 15-18
+  bilingualLayer: 'auto',     // 'auto' = depth-computed by selectBilingualLayer
+  autoEasePreset: 'default',  // 'default' = piecewise ease; Phase 2 wired
+};
+
+// ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
 
-const TweakCtx = createContext<MutableRefObject<TweakValues> | null>(null);
+// Context uses TweakValuesV2 so sub-tasks 15-18 can read new v2 fields.
+const TweakCtx = createContext<MutableRefObject<TweakValuesV2> | null>(null);
 
 // Stable fallback ref used when there is no Provider (production / tests).
 // Allocated once at module evaluation time.
-const FALLBACK_REF: MutableRefObject<TweakValues> = { current: { ...TWEAK_DEFAULTS } };
+const FALLBACK_REF: MutableRefObject<TweakValuesV2> = { current: { ...DEFAULT_TWEAK_VALUES_V2 } };
 
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
 export function TweakProvider({ children }: { children: ReactNode }) {
-  const ref = useRef<TweakValues>({ ...TWEAK_DEFAULTS });
+  const ref = useRef<TweakValuesV2>({ ...DEFAULT_TWEAK_VALUES_V2 });
   return <TweakCtx.Provider value={ref}>{children}</TweakCtx.Provider>;
 }
 
@@ -139,12 +181,12 @@ export function TweakProvider({ children }: { children: ReactNode }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the shared TweakValues ref.
+ * Returns the shared TweakValuesV2 ref.
  *
  * When no <TweakProvider> is present (production, SSR, most tests) the hook
- * returns a stable ref pre-loaded with TWEAK_DEFAULTS so Scene code is always
- * branch-free.
+ * returns a stable ref pre-loaded with DEFAULT_TWEAK_VALUES_V2 so Scene code
+ * is always branch-free.
  */
-export function useTweakRef(): MutableRefObject<TweakValues> {
+export function useTweakRef(): MutableRefObject<TweakValuesV2> {
   return useContext(TweakCtx) ?? FALLBACK_REF;
 }
