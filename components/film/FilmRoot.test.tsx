@@ -407,4 +407,16 @@ describe('parseQuery', () => {
     expect(q.stats).toBe(true);
     expect(q.focus).toBe('vi_heart');
   });
+
+  it('?skipEntry=1 → skipEntry true', () => {
+    expect(parseQuery('?skipEntry=1').skipEntry).toBe(true);
+  });
+
+  it('empty string → skipEntry undefined', () => {
+    expect(parseQuery('').skipEntry).toBeUndefined();
+  });
+
+  it('?skipEntry=0 → skipEntry undefined', () => {
+    expect(parseQuery('?skipEntry=0').skipEntry).toBeUndefined();
+  });
 });

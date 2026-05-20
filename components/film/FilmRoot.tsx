@@ -73,6 +73,8 @@ export interface FilmRootQuery {
   stats: boolean;
   focus?: TrackSlug;
   forceMobile?: boolean;
+  /** Debug: skip EntryCeremony, auto-mount Canvas. AudioContext won't resume (no user gesture). */
+  skipEntry?: boolean;
 }
 
 /**
@@ -92,8 +94,9 @@ export function parseQuery(search: string): FilmRootQuery {
       : undefined;
 
   const forceMobile = params.get('forceMobile') === '1';
+  const skipEntry = params.get('skipEntry') === '1' || undefined;
 
-  return { tweak, stats, focus, forceMobile };
+  return { tweak, stats, focus, forceMobile, skipEntry };
 }
 
 // ---------------------------------------------------------------------------
@@ -282,6 +285,15 @@ export function FilmRoot() {
     setStarted(true);
     setTimeout(() => setShowCeremony(false), 650);
   }, [audio, machine]);
+
+  // skipEntry: auto-trigger handleStart when capabilities + machine are ready (debug only).
+  // AudioContext won't resume because there's no user gesture, but canvas + scenes mount.
+  useEffect(() => {
+    if (query.skipEntry && capabilities && machine && !started) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleStart();
+    }
+  }, [query.skipEntry, capabilities, machine, started, handleStart]);
 
   // ---------------------------------------------------------------------------
   // Render phases
