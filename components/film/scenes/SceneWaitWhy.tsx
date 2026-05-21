@@ -25,8 +25,8 @@ const CHRYSAORA_PLACEMENTS = [
   { pos: [-3, -2, -7], rot: [0, Math.PI / 4, 0], scale: 1.8 },       // 315°
 ] as const;
 
-// Pagoda constants — nearly white for max contrast against dark bg.
-const PAGODA_COLOR = '#e8d8f0'; // nearly white pale lavender
+// Pagoda constants — bright lavender, not pure white (caused over-exposure in iter 3).
+const PAGODA_COLOR = '#a890c8'; // muted lavender that still reads vs bg
 const PAGODA_LAYER_COUNT = 5;
 const PAGODA_LAYER_HEIGHT = 1.0;
 const PAGODA_LAYER_GAP = 1.2;
@@ -47,8 +47,8 @@ function ChrysaoraInstance({ pos, rot, scale }: { pos: readonly [number, number,
         std.fog = true;
         std.transparent = false;
         if (std.emissive) {
-          std.emissive.setHex(0xd8b8ff); // very bright purple emissive glow
-          std.emissiveIntensity = 2.5;
+          std.emissive.setHex(0xb090d8); // soft purple emissive glow
+          std.emissiveIntensity = 1.2;
         }
       });
     });
@@ -96,14 +96,11 @@ export function SceneWaitWhy({ depthRef }: SceneProps) {
 
   return (
     <group ref={groupRef} visible={false}>
-      {/* Bright ambient + directional for base illumination */}
-      <ambientLight intensity={1.5} color="#9a7ac0" />
-      <directionalLight position={[5, 8, -5]} intensity={2.0} color="#d0b0e8" />
-      {/* Central origin point light at scene center — illuminates whole ring uniformly */}
-      <pointLight position={[0, 0, 0]} intensity={2.0} color="#ffffff" distance={0} decay={0} />
-      {/* Linear decay (decay=1) point lights near camera so far-side chrysaora still get light */}
-      <pointLight position={[0, -3, -3]} intensity={5.0} color="#e0c8ff" distance={30} decay={1} />
-      <pointLight position={[0, -1, -5]} intensity={3.0} color="#ffffff" distance={20} decay={1} />
+      {/* Dimmer balanced lighting — iter 3 was washed out white. */}
+      <ambientLight intensity={0.35} color="#8a6ab0" />
+      <directionalLight position={[5, 8, -5]} intensity={0.6} color="#c0a0d8" />
+      {/* Single subtle origin fill so back-side chrysaora not pitch black */}
+      <pointLight position={[0, -2, -3]} intensity={1.0} color="#d8c0ff" distance={15} decay={2} />
       <Suspense fallback={null}>
         {CHRYSAORA_PLACEMENTS.map((p, i) => (
           <ChrysaoraInstance key={i} pos={p.pos} rot={p.rot} scale={p.scale} />
