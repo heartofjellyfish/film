@@ -11,21 +11,21 @@ export const SCENE_WAIT_WHY_DEPTH_RANGE = [0.26, 0.38] as const;
 const CHRYSAORA_URL = '/models/chrysaora/model.glb';
 const SCENE_BG_HEX = '#1a1442';
 
-// 8 chrysaora in a horizontal ring around camera (0,-3,-3), radius ~7-8, y bias -2 to -4
-// Each placement is at an angle around the camera. With camera yawing 360°, all are reachable.
+// 8 chrysaora in a tighter horizontal ring around camera (0,-3,-3), radius ~4-5
+// Closer ring = larger in frame, more visible during 360° yaw sweep.
 const CHRYSAORA_PLACEMENTS = [
-  { pos: [0, -3, -11], rot: [0, 0, 0], scale: 1.0 },           // 0° (front, -z direction)
-  { pos: [6, -2.5, -9], rot: [0, -Math.PI / 4, 0], scale: 0.9 }, // 45°
-  { pos: [8, -3, -3], rot: [0, -Math.PI / 2, 0], scale: 1.0 },   // 90° (+x side)
-  { pos: [6, -2, 3], rot: [0, -3 * Math.PI / 4, 0], scale: 0.8 }, // 135°
-  { pos: [0, -3, 5], rot: [0, Math.PI, 0], scale: 0.9 },          // 180° (behind)
-  { pos: [-6, -2.5, 3], rot: [0, 3 * Math.PI / 4, 0], scale: 0.8 }, // 225°
-  { pos: [-8, -3, -3], rot: [0, Math.PI / 2, 0], scale: 1.0 },     // 270° (-x side)
-  { pos: [-6, -2, -9], rot: [0, Math.PI / 4, 0], scale: 0.9 },     // 315°
+  { pos: [0, -3, -8], rot: [0, 0, 0], scale: 1.5 },             // 0° (front, -z)
+  { pos: [4, -2.5, -6.5], rot: [0, -Math.PI / 4, 0], scale: 1.4 }, // 45°
+  { pos: [5.5, -3, -3], rot: [0, -Math.PI / 2, 0], scale: 1.5 },   // 90° (+x)
+  { pos: [4, -2, 1], rot: [0, -3 * Math.PI / 4, 0], scale: 1.3 }, // 135°
+  { pos: [0, -3, 2], rot: [0, Math.PI, 0], scale: 1.4 },           // 180° (behind → now closer)
+  { pos: [-4, -2.5, 1], rot: [0, 3 * Math.PI / 4, 0], scale: 1.3 }, // 225°
+  { pos: [-5.5, -3, -3], rot: [0, Math.PI / 2, 0], scale: 1.5 },   // 270° (-x)
+  { pos: [-4, -2, -6.5], rot: [0, Math.PI / 4, 0], scale: 1.4 },   // 315°
 ] as const;
 
 // Pagoda constants
-const PAGODA_COLOR = '#7a5a98'; // dark plum purple
+const PAGODA_COLOR = '#c8a8e8'; // bright lavender — clearly visible against dark bg
 const PAGODA_LAYER_COUNT = 5;
 const PAGODA_LAYER_HEIGHT = 1.0;
 const PAGODA_LAYER_GAP = 1.2;
@@ -46,8 +46,8 @@ function ChrysaoraInstance({ pos, rot, scale }: { pos: readonly [number, number,
         std.fog = true;
         std.transparent = false;
         if (std.emissive) {
-          std.emissive.setHex(0x6a4a8a); // soft purple emissive
-          std.emissiveIntensity = 0.5;
+          std.emissive.setHex(0xb090d8); // bright purple emissive glow
+          std.emissiveIntensity = 2.0;
         }
       });
     });
@@ -95,15 +95,19 @@ export function SceneWaitWhy({ depthRef }: SceneProps) {
 
   return (
     <group ref={groupRef} visible={false}>
-      <ambientLight intensity={0.55} color="#5a3a78" />
-      <directionalLight position={[5, 8, -5]} intensity={1.0} color="#9078b0" />
+      <ambientLight intensity={1.0} color="#6a4a90" />
+      <directionalLight position={[5, 8, -5]} intensity={1.5} color="#b090d0" />
+      {/* Point lights near camera position illuminate everything in frame */}
+      <pointLight position={[0, -3, -3]} intensity={3.0} color="#c8a8e8" distance={20} decay={2} />
+      <pointLight position={[0, -1, -3]} intensity={2.0} color="#ffffff" distance={15} decay={2} />
       <Suspense fallback={null}>
         {CHRYSAORA_PLACEMENTS.map((p, i) => (
           <ChrysaoraInstance key={i} pos={p.pos} rot={p.rot} scale={p.scale} />
         ))}
       </Suspense>
-      <PagodaSkeleton position={[10, -5, -6]} tiltRad={Math.PI / 6} />   {/* 60° angle from camera */}
-      <PagodaSkeleton position={[-9, -5, 4]} tiltRad={-Math.PI / 5} />   {/* 220° angle from camera */}
+      {/* Pagodas closer to camera path at key yaw angles */}
+      <PagodaSkeleton position={[6, -4, -4]} tiltRad={Math.PI / 8} />   {/* right side, near 90° */}
+      <PagodaSkeleton position={[-6, -4, 0]} tiltRad={-Math.PI / 8} />  {/* left side, near 270° */}
     </group>
   );
 }
