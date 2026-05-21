@@ -161,7 +161,20 @@ function FilmInner({ query, audio, showCeremony, onStart }: FilmInnerProps) {
         data-testid="canvas"
         style={{ position: 'fixed', inset: 0 }}
         camera={{ fov: 50, near: 0.1, far: 2000, position: [0, 2, 0] }}
-        gl={{ antialias: true }}
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
+        onCreated={(state) => {
+          // Debug exposure: lets headless probes manually call gl.render() when
+          // the tab is backgrounded and RAF is paused. No-op in production usage.
+          if (typeof window !== 'undefined') {
+            (window as unknown as { __r3f__?: unknown }).__r3f__ = {
+              gl: state.gl,
+              scene: state.scene,
+              camera: state.camera,
+              invalidate: state.invalidate,
+              advance: state.advance,
+            };
+          }
+        }}
       >
         <ModeMachineDriver />
         {/* CameraController: unified camera driver (Gap B). Reads depthRef, never writes. */}
