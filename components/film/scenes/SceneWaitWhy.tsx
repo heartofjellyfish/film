@@ -11,18 +11,20 @@ export const SCENE_WAIT_WHY_DEPTH_RANGE = [0.26, 0.38] as const;
 const CHRYSAORA_URL = '/models/chrysaora/model.glb';
 const SCENE_BG_HEX = '#3a2862'; // brighter purple bg for higher contrast
 
-// 8 chrysaora in a tight ring around camera (0,-3,-3), radius ~5-6
-// Camera yaw is now 0 (see cameraKeyframes.ts) so frontmost chrysaora at z=-8 is always in view.
-// Scaled up to 2.0 for guaranteed silhouette visibility.
+// 8 chrysaora in a ring around camera (0,-3,-3).
+// IMPORTANT: chrysaora GLB has an internal x100 scale baked in (verified via runtime
+// probe: positions span -18..+18 at outer scale 1.0). JellyPreview uses ctrl.scale 0.25
+// as default. Iter 3/4 used outer scale 2.0 → effective 200x → camera was INSIDE the bell.
+// Iter 5: use outer scale 0.4 → effective 40x bell ≈ 7 units across — visible silhouette.
 const CHRYSAORA_PLACEMENTS = [
-  { pos: [0, -3, -8], rot: [0, 0, 0], scale: 2.0 },                  // 0° (front, -z) — primary
-  { pos: [3, -2.5, -7], rot: [0, -Math.PI / 4, 0], scale: 1.8 },     // 45°
-  { pos: [5, -3, -3], rot: [0, -Math.PI / 2, 0], scale: 1.8 },       // 90° (+x)
-  { pos: [3, -2, 1], rot: [0, -3 * Math.PI / 4, 0], scale: 1.6 },    // 135°
-  { pos: [0, -3, 2], rot: [0, Math.PI, 0], scale: 1.6 },             // 180°
-  { pos: [-3, -2.5, 1], rot: [0, 3 * Math.PI / 4, 0], scale: 1.6 },  // 225°
-  { pos: [-5, -3, -3], rot: [0, Math.PI / 2, 0], scale: 1.8 },       // 270° (-x)
-  { pos: [-3, -2, -7], rot: [0, Math.PI / 4, 0], scale: 1.8 },       // 315°
+  { pos: [0, -3, -10], rot: [0, 0, 0], scale: 0.4 },                  // 0° (front, -z) — primary
+  { pos: [5, -2.5, -8], rot: [0, -Math.PI / 4, 0], scale: 0.4 },      // 45°
+  { pos: [7, -3, -3], rot: [0, -Math.PI / 2, 0], scale: 0.4 },        // 90° (+x)
+  { pos: [5, -2, 2], rot: [0, -3 * Math.PI / 4, 0], scale: 0.35 },    // 135°
+  { pos: [0, -3, 4], rot: [0, Math.PI, 0], scale: 0.35 },             // 180°
+  { pos: [-5, -2.5, 2], rot: [0, 3 * Math.PI / 4, 0], scale: 0.35 },  // 225°
+  { pos: [-7, -3, -3], rot: [0, Math.PI / 2, 0], scale: 0.4 },        // 270° (-x)
+  { pos: [-5, -2, -8], rot: [0, Math.PI / 4, 0], scale: 0.4 },        // 315°
 ] as const;
 
 // Pagoda constants — bright lavender, not pure white (caused over-exposure in iter 3).
@@ -96,11 +98,13 @@ export function SceneWaitWhy({ depthRef }: SceneProps) {
 
   return (
     <group ref={groupRef} visible={false}>
-      {/* Dimmer balanced lighting — iter 3 was washed out white. */}
-      <ambientLight intensity={0.35} color="#8a6ab0" />
-      <directionalLight position={[5, 8, -5]} intensity={0.6} color="#c0a0d8" />
-      {/* Single subtle origin fill so back-side chrysaora not pitch black */}
-      <pointLight position={[0, -2, -3]} intensity={1.0} color="#d8c0ff" distance={15} decay={2} />
+      {/* Balanced lighting — iter 4 reduced too much; bump ambient + add closer fill. */}
+      <ambientLight intensity={0.6} color="#9a7ac0" />
+      <directionalLight position={[2, 6, -8]} intensity={1.2} color="#d0b0e8" />
+      {/* Fill light midway between camera and front chrysaora */}
+      <pointLight position={[0, -2, -7]} intensity={2.0} color="#e0c8ff" distance={20} decay={1.5} />
+      {/* Rim from behind to catch back of chrysaora */}
+      <pointLight position={[0, 2, 4]} intensity={1.0} color="#a888d0" distance={15} decay={1.5} />
       <Suspense fallback={null}>
         {CHRYSAORA_PLACEMENTS.map((p, i) => (
           <ChrysaoraInstance key={i} pos={p.pos} rot={p.rot} scale={p.scale} />
