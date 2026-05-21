@@ -11,17 +11,17 @@ export const SCENE_WAIT_WHY_DEPTH_RANGE = [0.26, 0.38] as const;
 const CHRYSAORA_URL = '/models/chrysaora/model.glb';
 const SCENE_BG_HEX = '#1a1442';
 
-// Chrysaora placements: y values in [-5, -1] so they're in the camera's vertical FOV
-// (camera at d=0.32 is pos [0,-3,-3] lookAt [0,-3,-10] fov 50 -> visible y at distance 5: -5.33..-0.67)
+// 8 chrysaora in a horizontal ring around camera (0,-3,-3), radius ~7-8, y bias -2 to -4
+// Each placement is at an angle around the camera. With camera yawing 360°, all are reachable.
 const CHRYSAORA_PLACEMENTS = [
-  { pos: [0, -3, -6], rot: [0, 0, 0], scale: 1.0 },
-  { pos: [4, -2, -8], rot: [0, Math.PI / 4, 0], scale: 0.8 },
-  { pos: [-3, -1.5, -7], rot: [0, -Math.PI / 3, 0], scale: 0.9 },
-  { pos: [2, -3.5, -12], rot: [0, Math.PI / 6, Math.PI / 12], scale: 1.1 },
-  { pos: [-5, -2, -10], rot: [0, Math.PI / 2, 0], scale: 0.7 },
-  { pos: [1, -1, -15], rot: [0, -Math.PI / 4, -Math.PI / 12], scale: 1.2 },
-  { pos: [-2, -4, -6], rot: [0, Math.PI / 8, 0], scale: 0.85 },
-  { pos: [3, -2.5, -18], rot: [0, Math.PI, 0], scale: 1.0 },
+  { pos: [0, -3, -11], rot: [0, 0, 0], scale: 1.0 },           // 0° (front, -z direction)
+  { pos: [6, -2.5, -9], rot: [0, -Math.PI / 4, 0], scale: 0.9 }, // 45°
+  { pos: [8, -3, -3], rot: [0, -Math.PI / 2, 0], scale: 1.0 },   // 90° (+x side)
+  { pos: [6, -2, 3], rot: [0, -3 * Math.PI / 4, 0], scale: 0.8 }, // 135°
+  { pos: [0, -3, 5], rot: [0, Math.PI, 0], scale: 0.9 },          // 180° (behind)
+  { pos: [-6, -2.5, 3], rot: [0, 3 * Math.PI / 4, 0], scale: 0.8 }, // 225°
+  { pos: [-8, -3, -3], rot: [0, Math.PI / 2, 0], scale: 1.0 },     // 270° (-x side)
+  { pos: [-6, -2, -9], rot: [0, Math.PI / 4, 0], scale: 0.9 },     // 315°
 ] as const;
 
 // Pagoda constants
@@ -102,8 +102,8 @@ export function SceneWaitWhy({ depthRef }: SceneProps) {
           <ChrysaoraInstance key={i} pos={p.pos} rot={p.rot} scale={p.scale} />
         ))}
       </Suspense>
-      <PagodaSkeleton position={[-8, -2, -15]} tiltRad={Math.PI / 6} />
-      <PagodaSkeleton position={[6, -3, -18]} tiltRad={-Math.PI / 5} />
+      <PagodaSkeleton position={[10, -5, -6]} tiltRad={Math.PI / 6} />   {/* 60° angle from camera */}
+      <PagodaSkeleton position={[-9, -5, 4]} tiltRad={-Math.PI / 5} />   {/* 220° angle from camera */}
     </group>
   );
 }
