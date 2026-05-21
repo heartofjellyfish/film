@@ -25,7 +25,7 @@ const CHRYSAORA_PLACEMENTS = [
 ] as const;
 
 // Pagoda constants
-const PAGODA_COLOR = '#3a2848'; // dark plum purple
+const PAGODA_COLOR = '#7a5a98'; // dark plum purple
 const PAGODA_LAYER_COUNT = 5;
 const PAGODA_LAYER_HEIGHT = 1.0;
 const PAGODA_LAYER_GAP = 1.2;
@@ -47,7 +47,7 @@ function ChrysaoraInstance({ pos, rot, scale }: { pos: readonly [number, number,
         std.transparent = false;
         if (std.emissive) {
           std.emissive.setHex(0x6a4a8a); // soft purple emissive
-          std.emissiveIntensity = 0.15;
+          std.emissiveIntensity = 0.5;
         }
       });
     });
@@ -95,8 +95,8 @@ export function SceneWaitWhy({ depthRef }: SceneProps) {
 
   return (
     <group ref={groupRef} visible={false}>
-      <ambientLight intensity={0.3} color="#5a3a78" />
-      <directionalLight position={[5, 8, -5]} intensity={0.6} color="#9078b0" />
+      <ambientLight intensity={0.55} color="#5a3a78" />
+      <directionalLight position={[5, 8, -5]} intensity={1.0} color="#9078b0" />
       <Suspense fallback={null}>
         {CHRYSAORA_PLACEMENTS.map((p, i) => (
           <ChrysaoraInstance key={i} pos={p.pos} rot={p.rot} scale={p.scale} />
