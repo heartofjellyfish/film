@@ -20,9 +20,10 @@ export const DEFAULT_CAMERA_KEYFRAMES: ReadonlyArray<CameraKeyframe> = [
   // #3 Dream: descent into pagoda
   { depth: 0.16, pos: [0, 0, 0],   lookAt: [0, -1, -5],  fov: 45 },
   { depth: 0.26, pos: [0, -3, -3], lookAt: [0, -3, -10], fov: 45 },
-  // #4 Wait Why: slow self-rotation (yaw 0 → 360 deg)
+  // #4 Wait Why: camera held still (yaw=0). Self-rotation deferred until scene reads
+  // visibly — the ring + pagodas need to be confirmed first.
   { depth: 0.26, pos: [0, -3, -3], lookAt: [0, -3, -10], fov: 50, yawDeg: 0 },
-  { depth: 0.38, pos: [0, -3, -3], lookAt: [0, -3, -10], fov: 50, yawDeg: 360 },
+  { depth: 0.38, pos: [0, -3, -3], lookAt: [0, -3, -10], fov: 50, yawDeg: 0 },
   // #5 Wake Up: face jellyfish (hard cut snap)
   { depth: 0.38, pos: [0, 0, 0],   lookAt: [0, 0, -1],   fov: 40 },
   { depth: 0.50, pos: [0, 0, 0],   lookAt: [0, 0, -1],   fov: 40 },
