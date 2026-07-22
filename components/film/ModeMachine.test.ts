@@ -10,6 +10,7 @@ import {
   LISTEN_ANCHOR_RADIUS,
   applyEase,
   DEFAULT_AUTO_EASE_V2,
+  PRODUCTION_AUTO_DURATION_MS,
 } from './ModeMachine';
 import type { ModeMachineDeps, ModeMachineV2 } from './ModeMachine';
 import type { ModeEvent } from './types';
@@ -536,7 +537,7 @@ describe('applyEase', () => {
 describe('DEFAULT_AUTO_EASE_V2', () => {
   it('sum of all durationMs equals 90_000', () => {
     const total = DEFAULT_AUTO_EASE_V2.reduce((sum, seg) => sum + seg.durationMs, 0);
-    expect(total).toBe(90_000);
+    expect(total).toBe(PRODUCTION_AUTO_DURATION_MS);
   });
 
   it('has exactly 10 segments', () => {
@@ -571,7 +572,7 @@ describe('DEFAULT_AUTO_EASE_V2', () => {
 // ---------------------------------------------------------------------------
 
 describe('pushVirtualScroll', () => {
-  it('pushVirtualScroll in auto mode triggers transition to scroll', () => {
+  it('initial unchanged Lenis sample preserves auto; actual movement transitions to scroll', () => {
     const m = createModeMachine(makeDeps());
     const events: ModeEvent[] = [];
     m.subscribe((e) => events.push(e));
@@ -579,7 +580,11 @@ describe('pushVirtualScroll', () => {
 
     expect(m.modeRef.current).toBe('auto');
 
-    // Simulate ScrollProvider pushing a virtual scroll position
+    // ScrollProvider samples immediately on mount. Initial position is not input.
+    m.pushVirtualScroll(0);
+    expect(m.modeRef.current).toBe('auto');
+
+    // A later changed sample represents actual user movement.
     m.pushVirtualScroll(500);
 
     expect(m.modeRef.current).toBe('scroll');
@@ -614,6 +619,38 @@ describe('pushVirtualScroll', () => {
     m.pushVirtualScroll(500);
 
     expect(m.modeRef.current).toBe('auto');
+  });
+
+  it('repeated unchanged samples do not postpone the scroll-to-listen idle timer', () => {
+    const m = createModeMachine(makeDeps());
+    m.start();
+    setScroll(0, 1000, 0);
+    m.pushVirtualScroll(0);
+    m.pushVirtualScroll(550);
+    expect(m.modeRef.current).toBe('scroll');
+
+    vi.advanceTimersByTime(LISTEN_IDLE_MS + 100);
+    m.pushVirtualScroll(550);
+    m.tick(performance.now());
+
+    expect(m.modeRef.current).toBe('listen');
+    expect(m.depthRef.current).toBeCloseTo(0.55, 5);
+  });
+});
+
+describe('EndCard event lifecycle', () => {
+  it('fires once per run and becomes available again after reset', () => {
+    const m = createModeMachine(makeDeps());
+    const events: ModeEvent[] = [];
+    m.subscribe((event) => events.push(event));
+
+    m.fireEndCard();
+    m.fireEndCard();
+    expect(events.filter((event) => event.type === 'depth-end-card')).toHaveLength(1);
+
+    m.reset();
+    m.fireEndCard();
+    expect(events.filter((event) => event.type === 'depth-end-card')).toHaveLength(2);
   });
 });
 

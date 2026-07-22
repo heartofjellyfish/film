@@ -36,8 +36,10 @@ yarn-error.log*
 # Test coverage output
 coverage/
 
-# Real track mp3s — never commit (use placeholders in repo; real masters via CDN)
+# Real track mp3s — gitignored by default; keep the film's single preview master
+# in-repo until the production CDN is configured so deployed previews have sound.
 public/audio/tracks/*.mp3
+!public/audio/tracks/sea_risen_saw.mp3
 
 # Vercel
 .vercel

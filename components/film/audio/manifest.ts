@@ -25,8 +25,8 @@
  * Placeholder WAVs remain per-scene so a 404 fallback still degrades gracefully
  * (and if the user later wants per-scene tracks, swap full/ highlight URLs back).
  *
- * The mp3 is NOT in git (.gitignore excludes public/audio/tracks/*.mp3) —
- * keep masters on local disk / CDN, never commit.
+ * The single preview master is committed so Vercel reviews have real audio.
+ * Other masters remain ignored; move this file to CDN before final release.
  * ───────────────────────────────────────────────────────────────────────────
  */
 import type { TrackManifest } from '../types';

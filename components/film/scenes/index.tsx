@@ -1,13 +1,12 @@
 'use client';
 
 /**
- * Scenes — the composition root for all film scenes plus the transition corridor.
+ * Scenes — the composition root for all ten registered film scenes.
  *
  * Each registered scene from SCENE_REGISTRY gets mounted with the shared
  * `depthRef` (read-only, owned by ModeMachine) and an optional `onEvent`
  * callback that routes scene-local events (e.g. engulfment in scene #1)
- * up to FilmRoot. SceneTransition is mounted separately because it has no
- * registry anchor (it's not a "frame").
+ * up to FilmRoot.
  *
  * Scenes never import each other. Each scene reads `depthRef` in useFrame
  * and early-returns when it's outside its active window — so we can leave
@@ -16,7 +15,6 @@
  */
 import type { MutableRefObject } from 'react';
 import { SCENE_REGISTRY } from './registry';
-import { SceneTransition } from './SceneTransition';
 import type { SceneEvent } from '../types';
 
 export interface ScenesProps {
@@ -35,7 +33,6 @@ export function Scenes({ depthRef, onEvent }: ScenesProps) {
       {SCENE_REGISTRY.map(({ slug, component: SceneComponent }) => (
         <SceneComponent key={slug} depthRef={depthRef} onEvent={onEvent} />
       ))}
-      <SceneTransition depthRef={depthRef} onEvent={onEvent} />
     </>
   );
 }

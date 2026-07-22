@@ -21,9 +21,7 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
 // EntryCeremony tests that don't override Audio don't throw or produce
 // jsdom "not implemented" stderr spam.  Tests that need to verify Audio
 // behavior (vinyl pop tests) use vi.stubGlobal('Audio', ...) to override.
-if (typeof globalThis.Audio === 'undefined' ||
-    typeof (new globalThis.Audio()).play !== 'function' ||
-    (new globalThis.Audio()).play() === undefined) {
+if (typeof window !== 'undefined') {
   class StubAudio {
     src = '';
     volume = 1;
@@ -33,3 +31,8 @@ if (typeof globalThis.Audio === 'undefined' ||
   // @ts-expect-error -- jsdom stub for HTMLAudioElement.play
   globalThis.Audio = StubAudio;
 }
+
+// jsdom's default getContext logs a noisy "not implemented" error before
+// returning null. Individual EnvProbe tests replace this when they need a
+// specific WebGL result.
+HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext;

@@ -28,9 +28,8 @@ export type ModeEvent =
   | { type: 'anchor-entered'; slug: TrackSlug; anchor: number }
   | { type: 'anchor-exited'; slug: TrackSlug; anchor: number }
   | { type: 'auto-completed' }
-  /** Fired by EndCardWatcher (inside Canvas) when depthRef.current crosses 0.85.
-   *  Enables Overlay to show EndCard ~3s earlier than the auto-completed event
-   *  (which fires at d=1.0). See spec Gap A. */
+  /** Fired by EndCardWatcher when the film reaches depthRef.current=1.0.
+   *  Covers scroll and mobile paths where auto-completed may not fire. */
   | { type: 'depth-end-card' };
 
 // ---------------------------------------------------------------------------

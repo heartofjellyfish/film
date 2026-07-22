@@ -40,7 +40,12 @@ import { Stats } from '@react-three/drei';
 import type { MutableRefObject } from 'react';
 
 import { createEnvProbe } from './EnvProbe';
-import { createModeMachine, type ModeMachineDepsV2 } from './ModeMachine';
+import {
+  createModeMachine,
+  DEFAULT_AUTO_EASE_V2,
+  PRODUCTION_AUTO_DURATION_MS,
+  type ModeMachineDepsV2,
+} from './ModeMachine';
 import { ScrollProvider } from './ScrollProvider';
 import { EntryCeremony } from './EntryCeremony';
 import { WebGLFallback } from './WebGLFallback';
@@ -113,7 +118,7 @@ function ModeMachineDriver() {
 }
 
 // ---------------------------------------------------------------------------
-// EndCardWatcher — fires 'depth-end-card' event when d crosses 0.85 (Gap A).
+// EndCardWatcher — fires 'depth-end-card' only when the film reaches d=1.0.
 // Lives inside <Canvas> so it can use useFrame. Communicates via ModeMachine's
 // subscribe channel (the only legal inter-module communication path).
 // RED LINE: does not write depthRef.current.
@@ -122,7 +127,7 @@ function ModeMachineDriver() {
 function EndCardWatcher() {
   const machine = useModeMachine();
   useFrame(() => {
-    if (machine.depthRef.current >= 0.85) {
+    if (machine.depthRef.current >= 1.0) {
       machine.fireEndCard();
     }
   });
@@ -160,7 +165,7 @@ function FilmInner({ query, audio, showCeremony, onStart }: FilmInnerProps) {
       <Canvas
         data-testid="canvas"
         style={{ position: 'fixed', inset: 0 }}
-        camera={{ fov: 50, near: 0.1, far: 2000, position: [0, 2, 0] }}
+        camera={{ fov: 50, near: 0.1, far: 5000, position: [0, 2, 0] }}
         gl={{ antialias: true, preserveDrawingBuffer: true }}
         onCreated={(state) => {
           // Debug exposure: lets headless probes manually call gl.render() when
@@ -202,16 +207,15 @@ export function FilmRoot() {
   // --- EnvProbe (created once, stable for the page lifetime) ---
   const envProbe = useMemo(() => createEnvProbe(), []);
 
-  // capabilities: detected lazily on first client render.
-  // Lazy initializer: runs only once on mount, never on server (SSR-safe because
-  // this is a 'use client' component — the lazy fn runs only in the browser).
-  // useState's lazy form does NOT call the initializer during SSR; on the client
-  // it runs synchronously before the first render, so no hydration mismatch.
-  const [capabilities] = useState<EnvCapabilities | null>(() => {
-    // During SSR, typeof window === 'undefined'; return null so hydration matches.
-    if (typeof window === 'undefined') return null;
-    return envProbe.detect();
-  });
+  // capabilities: starts null, populated in useEffect after mount.
+  // This guarantees SSR HTML and first client render are identical (both null →
+  // Phase 0 transparent div). After useEffect commits, capabilities is set and
+  // FilmRoot re-renders to the real Phase 1/2/3. Fixes React #418 hydration mismatch.
+  const [capabilities, setCapabilities] = useState<EnvCapabilities | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCapabilities(envProbe.detect());
+  }, [envProbe]);
 
   // started: false → true when user completes EntryCeremony
   const [started, setStarted] = useState(false);
@@ -238,6 +242,8 @@ export function FilmRoot() {
       envProbe: capabilities ?? { isMobile: false },
       anchors: getAllAnchors(),
       initialFocus: query.focus,
+      autoEase: DEFAULT_AUTO_EASE_V2,
+      autoDurationMs: PRODUCTION_AUTO_DURATION_MS,
     }),
     [capabilities, query.focus],
   );

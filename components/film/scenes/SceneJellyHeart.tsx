@@ -201,6 +201,7 @@ function Membrane({
         depthWrite={false}
         side={THREE.BackSide}
         blending={THREE.NormalBlending}
+        fog={false}
       />
     </mesh>
   );

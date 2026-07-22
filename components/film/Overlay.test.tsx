@@ -132,9 +132,8 @@ describe('Overlay', () => {
     expect(screen.getByTestId('end-card')).toBeTruthy();
   });
 
-  it('6. depth-end-card event (d>=0.85 via EndCardWatcher) → EndCard becomes visible', async () => {
-    // Gap A: EndCardWatcher fires 'depth-end-card' via machine.fireEndCard() when
-    // depthRef.current crosses 0.85. Overlay subscribes and shows the EndCard.
+  it('6. depth-end-card event at d=1.0 → EndCard becomes visible', async () => {
+    // EndCardWatcher fires via machine.fireEndCard() at the actual film endpoint.
     render(<Overlay />);
 
     expect(screen.queryByTestId('end-card')).toBeNull();

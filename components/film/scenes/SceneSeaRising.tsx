@@ -16,7 +16,7 @@
  */
 import { Sky, useGLTF } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 // NOTE: camera is handled by CameraController (Level 3, FilmRoot). This scene
 // does NOT touch camera.position / camera.lookAt (Gap B red line).
 import * as THREE from 'three';
@@ -188,12 +188,16 @@ function ColdWater({
       sunColor: new THREE.Color(0xc8b890).getHex(),
       waterColor: new THREE.Color(0x4a6878).getHex(),
       distortionScale: 1.2, // almost still
-      fog: true,
+      // Water.js "fog" flag flips material.fog=true but its shader doesn't declare
+      // fog uniforms — three.js then crashes in refreshFogUniforms when scene.fog
+      // is set. Disable here; the water shader doesn't visually use fog anyway.
+      fog: false,
     });
     w.rotation.x = -Math.PI / 2;
     w.position.y = WATER_Y_START;
     const mat = w.material as THREE.ShaderMaterial;
     mat.side = THREE.DoubleSide;
+    mat.fog = false; // defensive in case Water.js constructor ignores the option
     return w;
   }, []);
 
@@ -293,7 +297,9 @@ export function SceneSeaRising({ depthRef, onEvent }: SceneProps) {
       />
       <ColdWater waterRef={waterRef} />
       <Beach />
-      <DistantJellyfish />
+      <Suspense fallback={null}>
+        <DistantJellyfish />
+      </Suspense>
     </group>
   );
 }

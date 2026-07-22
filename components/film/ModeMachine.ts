@@ -67,9 +67,13 @@ export interface ModeMachineV2 extends ModeMachine {
 /**
  * Auto mode tween duration.
  * Prototype: 22 s — only 2 scenes + transition.
- * TODO: change to 90_000 for full 10-scene production version.
+ * FilmRoot explicitly supplies PRODUCTION_AUTO_DURATION_MS; this short value
+ * remains the fallback for isolated tests and prototype consumers.
  */
 export const AUTO_DURATION_MS = 22_000;
+
+/** Full-film runtime used by FilmRoot. Kept separate from the short test/dev fallback. */
+export const PRODUCTION_AUTO_DURATION_MS = 90_000;
 
 /** Idle time in scroll mode before Listen triggers. */
 export const LISTEN_IDLE_MS = 3_000;
@@ -138,6 +142,7 @@ export function createModeMachine(deps: ModeMachineDepsV2): ModeMachineV2 {
   let lastScrollT = -Infinity;
   let autoStartT = 0;
   let autoCompletedFired = false;
+  let endCardFired = false;
   let currentAnchor: { slug: TrackSlug; anchor: number } | null = null;
   let listenStartScrollY = 0;
   /**
@@ -313,6 +318,7 @@ export function createModeMachine(deps: ModeMachineDepsV2): ModeMachineV2 {
     depthRef.current = 0;
     autoStartT = performance.now();
     autoCompletedFired = false;
+    endCardFired = false;
     currentAnchor = null;
     // Keep scroll listener attached — user might scroll again.
     attachScrollListener();
@@ -393,11 +399,19 @@ export function createModeMachine(deps: ModeMachineDepsV2): ModeMachineV2 {
    * virtual scroll position. ModeMachine uses this in scroll mode instead of
    * reading window.scrollY directly, decoupling it from native scroll.
    *
-   * If mode is 'auto', this also triggers the auto → scroll transition
-   * (same as a native scroll event would).
+   * A changed sample in Auto mode also triggers auto → scroll. Initial and
+   * repeated unchanged samples are ignored because they are not user input.
    */
   function pushVirtualScroll(scrollY: number): void {
+    const previousScroll = currentVirtualScroll;
     currentVirtualScroll = scrollY;
+
+    // ScrollProvider samples Lenis every animation frame. An unchanged sample is
+    // not user input: treating it as input would instantly cancel Auto mode and
+    // would keep refreshing lastScrollT so Scroll could never settle into Listen.
+    const moved = previousScroll >= 0 && Math.abs(scrollY - previousScroll) >= 0.5;
+    if (!moved) return;
+
     lastScrollT = performance.now();
 
     // Mobile: always stay in auto.
@@ -407,9 +421,6 @@ export function createModeMachine(deps: ModeMachineDepsV2): ModeMachineV2 {
       transition('scroll');
     }
   }
-
-  // -- endCardFired guard: ensure depth-end-card fires at most once --
-  let endCardFired = false;
 
   function fireEndCard(): void {
     if (endCardFired) return;

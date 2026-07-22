@@ -152,7 +152,7 @@ Scenes must not import each other. Events between scenes go up through FilmRoot.
 - First paint preloaded: < 5 MB (chrysaora is ~1.6 MB — keep it that way)
 - Gated assets: < 50 MB each (texture-resize before going higher)
 - Placeholder audio total: < 2 MB (short WAV loops × 3)
-- Real track mp3s: **never commit** — CDN later
+- Real track mp3s: ignore by default; `sea_risen_saw.mp3` is the temporary preview exception until CDN migration
 
 ## Directory structure
 

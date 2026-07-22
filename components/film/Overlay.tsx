@@ -4,7 +4,7 @@
  * Subscribes to ModeMachine events and decides what to display:
  *   - anchor-entered  → show ChapterCard for that slug; compute bilingual layer
  *   - anchor-exited   → hide ChapterCard (if the exited slug matches current)
- *   - depth-end-card  → show EndCard when d >= 0.85 (early trigger, spec Gap A)
+ *   - depth-end-card  → show EndCard when d reaches 1.0
  *   - auto-completed  → show EndCard (fallback latch for d=1.0)
  *   - mode-changed    → no action (Overlay is display-only)
  *
@@ -81,8 +81,8 @@ export function Overlay() {
         }
       }
 
-      // Gap A: 'depth-end-card' fires from EndCardWatcher (inside Canvas) at d≥0.85.
-      // 'auto-completed' is the fallback latch at d=1.0.
+      // 'depth-end-card' covers scroll/mobile at d=1.0; 'auto-completed' is
+      // the desktop Auto-mode completion event at the same endpoint.
       if (e.type === 'depth-end-card' || e.type === 'auto-completed') {
         setShowEndCard(true);
       }

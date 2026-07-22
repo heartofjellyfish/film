@@ -23,7 +23,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { FilmRoot, parseQuery } from './FilmRoot';
 import type { EnvCapabilities } from './types';
-import type { ModeMachineDeps } from './ModeMachine';
+import {
+  DEFAULT_AUTO_EASE_V2,
+  PRODUCTION_AUTO_DURATION_MS,
+  type ModeMachineDepsV2,
+} from './ModeMachine';
 
 // ---------------------------------------------------------------------------
 // Mock: @react-three/fiber
@@ -101,7 +105,7 @@ vi.mock('./TweakPanel', () => ({
 // Mock: ModeMachine — captures the deps passed to createModeMachine
 // and exposes them for assertion.
 // ---------------------------------------------------------------------------
-let capturedDeps: ModeMachineDeps | null = null;
+let capturedDeps: ModeMachineDepsV2 | null = null;
 const mockMachineInstance = {
   depthRef: { current: 0 },
   modeRef: { current: 'auto' as const },
@@ -116,7 +120,7 @@ vi.mock('./ModeMachine', async (importOriginal) => {
   const original = await importOriginal<typeof import('./ModeMachine')>();
   return {
     ...original,
-    createModeMachine: (deps: ModeMachineDeps) => {
+    createModeMachine: (deps: ModeMachineDepsV2) => {
       capturedDeps = deps;
       return mockMachineInstance;
     },
@@ -279,6 +283,13 @@ describe('FilmRoot', () => {
       writable: true,
       configurable: true,
     });
+  });
+
+  it('5b. production FilmRoot wires the complete 90-second piecewise timeline', async () => {
+    await renderFilmRoot();
+
+    expect(capturedDeps?.autoEase).toBe(DEFAULT_AUTO_EASE_V2);
+    expect(capturedDeps?.autoDurationMs).toBe(PRODUCTION_AUTO_DURATION_MS);
   });
 
   // -------------------------------------------------------------------------

@@ -52,7 +52,7 @@ See `CLAUDE.md` for full architecture notes, patterns, and the Bloom+transmissio
 
 - 3D model: `public/models/chrysaora/` — Pacific Sea Nettle (Sketchfab Standard License)
 - Placeholder audio: `public/audio/placeholder/` — CC0 ambients (see CREDITS.md)
-- Real tracks: `public/audio/tracks/` — **never commit mp3s to git**, CDN later
+- Real tracks: `public/audio/tracks/` — the single preview master is committed for Vercel; move it to CDN before final release
 
 ---
 

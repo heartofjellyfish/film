@@ -30,9 +30,5 @@ export function SceneSeaRisen({ depthRef }: SceneProps) {
     }
   });
 
-  return (
-    <group ref={groupRef} visible={false}>
-      <color attach="background" args={[SCENE_BG_COLOR]} />
-    </group>
-  );
+  return <group ref={groupRef} visible={false} />;
 }
