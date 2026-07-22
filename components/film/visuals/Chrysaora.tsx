@@ -1,6 +1,6 @@
 'use client';
 
-import { useGLTF } from '@react-three/drei';
+import { useAnimations, useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -12,26 +12,22 @@ export interface ChrysaoraProps {
   rotation?: [number, number, number];
   /** Desired world-space height after automatic GLB normalization. */
   height?: number;
-  flattenY?: number;
-  tint?: string;
-  emissive?: string;
-  emissiveIntensity?: number;
+  animationSpeed?: number;
+  innerLightIntensity?: number;
 }
 
 /**
- * The film's one real organic asset. Geometry is shared, while materials are
- * cloned per instance so scene-specific tinting never leaks to other scenes.
+ * The film's one real organic asset. Geometry is shared, while authored
+ * materials are cloned per instance so every appearance stays independent.
  */
 export function Chrysaora({
   position = [0, 0, 0],
   rotation = [0, 0, 0],
   height = 4,
-  flattenY = 1,
-  tint = '#c8b8d8',
-  emissive = '#5a3d78',
-  emissiveIntensity = 0.35,
+  animationSpeed = 0.42,
+  innerLightIntensity = 4.5,
 }: ChrysaoraProps) {
-  const { scene } = useGLTF(CHRYSAORA_URL);
+  const { scene, animations } = useGLTF(CHRYSAORA_URL);
 
   const normalized = useMemo(() => {
     const root = cloneSkeleton(scene);
@@ -42,12 +38,7 @@ export function Chrysaora({
       const materials = source.map((material) => {
         const copy = material.clone() as THREE.MeshStandardMaterial;
         copy.fog = true;
-        copy.transparent = false;
-        if ('color' in copy && copy.color) copy.color.set(tint);
-        if ('emissive' in copy && copy.emissive) {
-          copy.emissive.set(emissive);
-          copy.emissiveIntensity = emissiveIntensity;
-        }
+        // Preserve the authored colors, maps, opacity, side, and transparency.
         return copy;
       });
       mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
@@ -58,7 +49,18 @@ export function Chrysaora({
     const center = bounds.getCenter(new THREE.Vector3());
     root.position.sub(center);
     return { root, unitScale: size.y > 0 ? 1 / size.y : 1 };
-  }, [scene, tint, emissive, emissiveIntensity]);
+  }, [scene]);
+
+  const { actions, names } = useAnimations(animations, normalized.root);
+
+  useEffect(() => {
+    const action = names[0] ? actions[names[0]] : undefined;
+    if (!action) return;
+    action.reset().setEffectiveTimeScale(animationSpeed).fadeIn(0.6).play();
+    return () => {
+      action.fadeOut(0.25);
+    };
+  }, [actions, animationSpeed, names]);
 
   useEffect(() => {
     return () => {
@@ -77,9 +79,18 @@ export function Chrysaora({
     <group
       position={position}
       rotation={rotation}
-      scale={[worldScale, worldScale * flattenY, worldScale]}
+      scale={worldScale}
     >
       <primitive object={normalized.root} />
+      {innerLightIntensity > 0 && (
+        <pointLight
+          position={[0, 0.18 / normalized.unitScale, 0]}
+          color="#ffd09a"
+          intensity={innerLightIntensity}
+          distance={height * 0.95}
+          decay={1.45}
+        />
+      )}
     </group>
   );
 }

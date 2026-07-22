@@ -95,9 +95,7 @@ function DistantJellyfish() {
       position={[13, -5, -45]}
       rotation={[0, -0.5, 0]}
       height={7}
-      tint="#778895"
-      emissive="#415463"
-      emissiveIntensity={0.18}
+      animationSpeed={0.28}
     />
   );
 }

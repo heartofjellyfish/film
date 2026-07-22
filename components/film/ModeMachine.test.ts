@@ -12,7 +12,7 @@ import {
   DEFAULT_AUTO_EASE_V2,
   PRODUCTION_AUTO_DURATION_MS,
 } from './ModeMachine';
-import type { ModeMachineDeps, ModeMachineV2 } from './ModeMachine';
+import type { ModeMachineDeps, ModeMachineDepsV2, ModeMachineV2 } from './ModeMachine';
 import type { ModeEvent } from './types';
 
 // ---------------------------------------------------------------------------
@@ -24,7 +24,7 @@ const MOCK_ANCHORS: ModeMachineDeps['anchors'] = [
   { slug: 'vi_heart', anchor: 0.55 },
 ];
 
-function makeDeps(overrides: Partial<ModeMachineDeps> = {}): ModeMachineDeps {
+function makeDeps(overrides: Partial<ModeMachineDepsV2> = {}): ModeMachineDepsV2 {
   return {
     envProbe: { isMobile: false },
     anchors: MOCK_ANCHORS,

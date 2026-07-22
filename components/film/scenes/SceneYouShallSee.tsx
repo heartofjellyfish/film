@@ -62,7 +62,7 @@ export function SceneYouShallSee({ depthRef, onEvent }: SceneProps) {
   });
 
   const jellyPlacements: Array<[number, number, number]> = [
-    [-4, 2, -11], [-2, -1, -9], [0, 2.5, -13], [2.5, 0, -10], [4, 2, -15], [-5, -2, -16], [5, -2, -12],
+    [-3.8, 1.8, -12], [0, -0.8, -10], [4, 1.4, -14],
   ];
 
   return (
@@ -97,7 +97,7 @@ export function SceneYouShallSee({ depthRef, onEvent }: SceneProps) {
       <group ref={(node) => { shotRefs.current[6] = node; }} visible={false}>
         <Suspense fallback={null}>
           {jellyPlacements.map((position, index) => (
-            <Chrysaora key={index} position={position} rotation={[0, index * 0.7, 0]} height={3.5 + (index % 3) * 0.8} tint="#c5a8dc" emissive="#754d9a" emissiveIntensity={1.1} />
+            <Chrysaora key={index} position={position} rotation={[0, index * 0.7, 0]} height={4.2 + index * 0.5} animationSpeed={0.5} />
           ))}
         </Suspense>
       </group>
@@ -105,20 +105,9 @@ export function SceneYouShallSee({ depthRef, onEvent }: SceneProps) {
 
       <group ref={steadyRef} visible={false}>
         <ParticleField count={500} spread={[20, 14, 34]} color="#7fe0dc" size={0.045} opacity={0.72} speed={0.01} />
-        <mesh position={[0, 0.4, -10]}>
-          <icosahedronGeometry args={[1.45, 2]} />
-          <meshStandardMaterial color="#285e73" emissive="#173d52" emissiveIntensity={0.8} roughness={0.72} />
-        </mesh>
-        {[2.4, 3.1, 3.8].map((radius, index) => (
-          <mesh key={radius} position={[0, 0.4, -10]} rotation={[0.25 + index * 0.15, 0.2, 0]}>
-            <torusGeometry args={[radius, 0.025, 8, 96]} />
-            <meshBasicMaterial color="#7ed0cd" transparent opacity={0.22 - index * 0.04} depthWrite={false} toneMapped={false} />
-          </mesh>
-        ))}
+        <pointLight position={[-2, 2, -14]} intensity={5} distance={20} color="#88c8d0" />
         <Suspense fallback={null}>
-          <Chrysaora position={[-5, 2, -15]} rotation={[0, 0.5, 0]} height={4.2} tint="#567f91" emissive="#285c70" emissiveIntensity={0.48} />
-          <Chrysaora position={[5, -1.5, -18]} rotation={[0, -0.6, 0]} height={4.8} tint="#638697" emissive="#2c6171" emissiveIntensity={0.5} />
-          <Chrysaora position={[0, 5, -25]} rotation={[0, 0.1, 0]} height={3.2} tint="#4a7789" emissive="#245267" emissiveIntensity={0.42} />
+          <Chrysaora position={[2.8, 0, -14]} rotation={[0, -0.6, 0]} height={5.8} animationSpeed={0.28} />
         </Suspense>
       </group>
     </group>

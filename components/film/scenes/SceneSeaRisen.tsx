@@ -97,18 +97,10 @@ export function SceneSeaRisen({ depthRef, onEvent }: SceneProps) {
         <ambientLight intensity={0.28} color="#3a7784" />
         <pointLight position={[0, 4, -5]} intensity={4} distance={32} color="#75d8d0" />
         <ParticleField count={420} spread={[22, 16, 38]} color="#63d8d5" size={0.045} opacity={0.68} speed={0.018} />
-        {[-7, -3, 3, 7].map((x, index) => (
-          <mesh key={x} position={[x, -4 + (index % 2), -12 - index * 3]}>
-            <boxGeometry args={[0.8, 7 + index, 0.8]} />
-            <meshStandardMaterial color="#244552" roughness={0.95} emissive="#102832" emissiveIntensity={0.25} fog />
-          </mesh>
-        ))}
         <Suspense fallback={null}>
-          <Chrysaora position={[-4, 1, -10]} rotation={[0, 0.4, 0]} height={4.8} tint="#93d2d0" emissive="#328c92" emissiveIntensity={0.9} />
-          <Chrysaora position={[3, -1, -13]} rotation={[0, -0.7, 0]} height={5.8} tint="#a1d8d0" emissive="#3b8c8d" emissiveIntensity={0.85} />
-          <Chrysaora position={[0, 4, -20]} rotation={[0, 0.2, 0]} height={4} tint="#82bdc8" emissive="#316f83" emissiveIntensity={0.7} />
-          <Chrysaora position={[7, 3, -25]} rotation={[0, 1.1, 0]} height={3.6} tint="#88c8c4" emissive="#2b7b80" emissiveIntensity={0.75} />
-          <Chrysaora position={[-7, -3, -24]} rotation={[0, -1.2, 0]} height={4.2} tint="#7fb7c4" emissive="#326b80" emissiveIntensity={0.65} />
+          <Chrysaora position={[-3, 1, -14]} rotation={[0, 0.4, 0]} height={5.5} animationSpeed={0.32} />
+          <Chrysaora position={[3, -1, -17]} rotation={[0, -0.7, 0]} height={4.8} animationSpeed={0.38} />
+          <Chrysaora position={[0, 4, -24]} rotation={[0, 0.2, 0]} height={3.8} animationSpeed={0.24} />
         </Suspense>
       </group>
     </group>

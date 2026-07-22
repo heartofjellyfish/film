@@ -35,7 +35,10 @@ export function SceneDayAfter({ depthRef }: SceneProps) {
     if (!(scene.fog instanceof THREE.FogExp2)) scene.fog = new THREE.FogExp2('#6a5050', 0.018);
     scene.fog.color.set('#6a5050');
     scene.fog.density = 0.018;
-    if (jellyRef.current) jellyRef.current.scale.y = computeBeachedFlatten(d);
+    if (jellyRef.current) {
+      const settled = 0.5 - computeBeachedFlatten(d);
+      jellyRef.current.scale.setScalar(0.96 + settled * 0.12);
+    }
   });
 
   return (
@@ -53,9 +56,9 @@ export function SceneDayAfter({ depthRef }: SceneProps) {
         <meshStandardMaterial color="#556a70" roughness={0.28} metalness={0.25} fog />
       </mesh>
 
-      <group ref={jellyRef} position={[0, -0.25, -7]} rotation={[0.2, 0.5, Math.PI / 2]}>
+      <group ref={jellyRef} position={[0.8, -0.27, -6.2]} rotation={[0.18, 0.45, Math.PI / 2]}>
         <Suspense fallback={null}>
-          <Chrysaora height={5.5} tint="#a98994" emissive="#3f2634" emissiveIntensity={0.12} />
+          <Chrysaora height={1.7} animationSpeed={0.06} innerLightIntensity={0.6} />
         </Suspense>
       </group>
     </group>

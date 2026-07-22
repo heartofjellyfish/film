@@ -28,11 +28,9 @@ export function computeRecursionIntensity(depth: number): number {
 // as default. Iter 3/4 used outer scale 2.0 → effective 200x → camera was INSIDE the bell.
 // Iter 5: use outer scale 0.4 → effective 40x bell ≈ 7 units across — visible silhouette.
 const CHRYSAORA_PLACEMENTS = [
-  { pos: [0, -2, -15], rot: [0, 0, 0], height: 8 },
-  { pos: [6, -2, -18], rot: [0, -0.45, 0], height: 6 },
-  { pos: [-6, -2, -18], rot: [0, 0.45, 0], height: 6 },
-  { pos: [11, -1, -24], rot: [0, -0.75, 0], height: 5 },
-  { pos: [-11, -1, -24], rot: [0, 0.75, 0], height: 5 },
+  { pos: [0, -2, -16], rot: [0, 0, 0], height: 8 },
+  { pos: [8, -2, -24], rot: [0, -0.55, 0], height: 4.5 },
+  { pos: [-8, -2, -24], rot: [0, 0.55, 0], height: 4.5 },
 ] as const;
 
 export function SceneWaitWhy({ depthRef, onEvent }: SceneProps) {
@@ -91,9 +89,7 @@ export function SceneWaitWhy({ depthRef, onEvent }: SceneProps) {
             position={[...p.pos]}
             rotation={[...p.rot]}
             height={p.height}
-            tint="#5f4c75"
-            emissive="#62477d"
-            emissiveIntensity={0.42}
+            animationSpeed={i === 0 ? 0.4 : 0.25}
           />
         ))}
       </Suspense>

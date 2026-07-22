@@ -81,10 +81,10 @@ export function SceneBelongsToSea({ depthRef }: SceneProps) {
       <pointLight position={[0, 5, -7]} intensity={11} distance={38} decay={1.35} color="#9dd1d5" />
       <pointLight position={[6, -2, -12]} intensity={6} distance={28} color="#d09a70" />
       <ParticleField count={320} spread={[20, 18, 40]} color="#c2d3d8" size={0.025} opacity={0.45} speed={0.008} />
-      <group ref={arkRef} position={[0, 1.5, -13]}>
+      <group ref={arkRef} position={[0.8, 1.5, -15]} scale={0.62}>
         <SunkenPiano />
       </group>
-      <PersonalRelics position={[-2.5, 1.5, -10]} direction="sink" scale={0.58} />
+      <PersonalRelics position={[-2.8, 1.2, -14]} direction="sink" scale={0.35} variant="memory" />
     </group>
   );
 }

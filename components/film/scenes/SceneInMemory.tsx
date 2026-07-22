@@ -52,9 +52,8 @@ export function SceneInMemory({ depthRef }: SceneProps) {
       </group>
 
       <Suspense fallback={null}>
-        <Chrysaora position={[-5, 1.5, -18]} rotation={[0, 0.5, 0]} height={5} emissiveIntensity={0.5} />
-        <Chrysaora position={[5, -1, -23]} rotation={[0, -0.8, 0]} height={4} tint="#8796b8" />
-        <Chrysaora position={[0, 4, -29]} rotation={[0, 0.2, 0]} height={3.2} tint="#7182a8" />
+        <Chrysaora position={[-4.8, 1.2, -18]} rotation={[0, 0.5, 0]} height={5.2} animationSpeed={0.3} />
+        <Chrysaora position={[5.5, -1.5, -28]} rotation={[0, -0.8, 0]} height={3.2} animationSpeed={0.24} />
       </Suspense>
     </group>
   );

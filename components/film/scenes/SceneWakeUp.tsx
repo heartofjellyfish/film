@@ -62,7 +62,7 @@ export function SceneWakeUp({ depthRef, onEvent }: SceneProps) {
       <ParticleField count={190} spread={[17, 11, 28]} color="#e8a88c" size={0.035} opacity={0.48} speed={0.018} />
       <group ref={bellRef} position={[0, 0, -15]} rotation={[0, 0, 0]}>
         <Suspense fallback={null}>
-          <Chrysaora height={8.5} tint="#9c6a86" emissive="#8d405f" emissiveIntensity={0.72} />
+          <Chrysaora height={8.5} animationSpeed={0.7} />
         </Suspense>
       </group>
     </group>

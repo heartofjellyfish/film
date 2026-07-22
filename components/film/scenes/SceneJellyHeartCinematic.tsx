@@ -18,7 +18,6 @@ export function SceneJellyHeartCinematic({ depthRef, onEvent }: SceneProps) {
   const groupRef = useRef<THREE.Group>(null);
   const jellyRef = useRef<THREE.Group>(null);
   const heartRef = useRef<THREE.Mesh>(null);
-  const ringRefs = useRef<Array<THREE.Mesh | null>>([]);
   const lastBeatRef = useRef(-1);
 
   useFrame(({ scene, clock }) => {
@@ -38,14 +37,6 @@ export function SceneJellyHeartCinematic({ depthRef, onEvent }: SceneProps) {
       jellyRef.current.rotation.y = Math.sin(time * 0.16) * 0.08;
       jellyRef.current.scale.setScalar(0.98 + Math.sin(time * 0.7) * 0.018);
     }
-    ringRefs.current.forEach((ring, index) => {
-      if (!ring) return;
-      const pulse = 1 + ((time * 0.24 + index * 0.24) % 1) * 0.5;
-      ring.scale.setScalar(pulse);
-      const material = ring.material as THREE.MeshBasicMaterial;
-      material.opacity = (0.22 - (pulse - 1) * 0.28) * fade;
-    });
-
     const beatIndex = Math.floor(time / (60 / HEART_BPM_DEFAULT));
     if (beatIndex !== lastBeatRef.current) {
       lastBeatRef.current = beatIndex;
@@ -65,6 +56,7 @@ export function SceneJellyHeartCinematic({ depthRef, onEvent }: SceneProps) {
       <ambientLight intensity={0.24} color="#785b82" />
       <pointLight position={[0, 5, -8]} intensity={6} distance={34} color="#ffc18a" />
       <pointLight position={[-5, -2, -14]} intensity={3} distance={26} color="#7f4580" />
+      <pointLight position={[0, 2.8, -15]} intensity={9} distance={9} decay={1.4} color="#ffd18c" />
       <ParticleField count={260} spread={[18, 13, 30]} color="#e8bc96" size={0.035} opacity={0.42} speed={0.008} />
 
       <mesh>
@@ -74,25 +66,14 @@ export function SceneJellyHeartCinematic({ depthRef, onEvent }: SceneProps) {
 
       <group ref={jellyRef} position={[0, 0, -16]}>
         <Suspense fallback={null}>
-          <Chrysaora height={11.5} tint="#7b526d" emissive="#6e354f" emissiveIntensity={0.48} />
+          <Chrysaora height={11} animationSpeed={0.34} />
         </Suspense>
       </group>
 
-      <mesh ref={heartRef} position={[0, 3.2, -13.2]}>
-        <sphereGeometry args={[0.42, 36, 24]} />
-        <meshBasicMaterial color="#ffd09a" toneMapped={false} fog={false} />
+      <mesh ref={heartRef} position={[0, 2.75, -15.7]}>
+        <sphereGeometry args={[0.18, 28, 20]} />
+        <meshStandardMaterial color="#8f2d36" emissive="#ff694d" emissiveIntensity={4} transparent opacity={0.88} toneMapped={false} fog={false} />
       </mesh>
-      {[0, 1, 2].map((index) => (
-        <mesh
-          key={index}
-          ref={(node) => { ringRefs.current[index] = node; }}
-          position={[0, 3.2, -13.35 - index * 0.03]}
-          scale={1 + index * 0.22}
-        >
-          <torusGeometry args={[0.72 + index * 0.3, 0.018, 8, 64]} />
-          <meshBasicMaterial color="#ffc997" transparent opacity={0.18} depthWrite={false} toneMapped={false} />
-        </mesh>
-      ))}
     </group>
   );
 }
