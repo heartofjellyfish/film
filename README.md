@@ -2,10 +2,10 @@
 
 Prototype for the album experience site by **Qi · 琦** (releasing 2026-12-20).
 
-A scroll-driven 3D film in three acts:
-1. **Sea Rising** — a static shore, the water rises and swallows the camera
-2. **The Deep** — drifting through dark water toward a glow
-3. **The Heart of the Jellyfish** — inside the bell, a warm pulsing heart
+A 90-second scroll-driven 3D film spanning all ten album chapters: the rising
+shore, memory relics, a temple dream, recursive jellyfish, the single hard cut,
+the heart sanctuary, a flash-cut vision, the sinking ark, the day-after beach,
+and the new sea.
 
 Three viewing modes: Auto (time-driven), Scroll (visitor-driven), Listen (song plays in full).
 
@@ -21,7 +21,7 @@ npm run dev       # localhost:3000
 Optional URL params:
 - `?tweak=1` — show Leva slider panel
 - `?stats=1` — show R3F FPS / draw call counter
-- `?focus=vi_heart` — jump straight to Scene vi (debug)
+- `?focus=<track-slug>` — lock to any scene anchor for review
 
 Preview the jellyfish model alone: `localhost:3000/preview-jelly`
 
@@ -60,8 +60,9 @@ See `CLAUDE.md` for full architecture notes, patterns, and the Bloom+transmissio
 
 | URL | Behavior |
 |---|---|
-| `/` | Full film: entry ceremony → Auto mode → Sea Rising (#1) → The Heart of the Jellyfish (#6) → EndCard |
+| `/` | Full film: entry ceremony → Auto mode → all ten scenes → EndCard |
 | `/?focus=i_sea_rising` | Skips to #1 immediately after entry, locks depthRef at anchor 0.05 |
+| `/?focus=ii_in_memory` through `/?focus=x_sea_risen` | Locks the film to any later scene for review |
 | `/?focus=vi_heart` | Skips to #6 immediately after entry, locks depthRef at anchor 0.55 — use this for verifying the sanctuary feel |
 | `/?tweak=1` | Adds Leva slider panel (top-right) for live-tuning sky / water / bloom / fog params |
 | `/?stats=1` | Adds R3F Stats overlay showing FPS and draw-call counter |

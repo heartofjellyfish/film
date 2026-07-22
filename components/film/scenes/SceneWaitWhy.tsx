@@ -1,15 +1,24 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
+import { Suspense, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { SceneProps } from '../types';
+import { Chrysaora } from '../visuals/Chrysaora';
 
 export const SCENE_WAIT_WHY_DEPTH_RANGE = [0.26, 0.38] as const;
 
-const CHRYSAORA_URL = '/models/chrysaora/model.glb';
 const SCENE_BG_HEX = '#3a2862'; // brighter purple bg for higher contrast
+
+export function computeRecursionIntensity(depth: number): number {
+  const progress = THREE.MathUtils.clamp(
+    (depth - SCENE_WAIT_WHY_DEPTH_RANGE[0]) /
+      (SCENE_WAIT_WHY_DEPTH_RANGE[1] - SCENE_WAIT_WHY_DEPTH_RANGE[0]),
+    0,
+    1,
+  );
+  return Math.sin(progress * Math.PI);
+}
 
 // 8 chrysaora in a ring around camera (0,-3,-3).
 // IMPORTANT: chrysaora GLB has an internal x100 scale baked in (verified via runtime
@@ -35,33 +44,6 @@ const PAGODA_LAYER_GAP = 1.2;
 const PAGODA_BASE_RADIUS = 1.5;
 const PAGODA_RADIUS_STEP = 0.2;
 
-function ChrysaoraInstance({ pos, rot, scale }: { pos: readonly [number, number, number]; rot: readonly [number, number, number]; scale: number }) {
-  const { scene } = useGLTF(CHRYSAORA_URL);
-  const cloned = useMemo(() => scene.clone(true), [scene]);
-  useEffect(() => {
-    cloned.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      const mats = Array.isArray(m.material) ? m.material : [m.material];
-      mats.forEach((mat) => {
-        const std = mat as THREE.MeshStandardMaterial;
-        if (!std) return;
-        std.fog = true;
-        std.transparent = false;
-        if (std.emissive) {
-          std.emissive.setHex(0xb090d8); // soft purple emissive glow
-          std.emissiveIntensity = 1.2;
-        }
-      });
-    });
-  }, [cloned]);
-  return (
-    <group position={[...pos] as [number, number, number]} rotation={[...rot] as [number, number, number]} scale={scale}>
-      <primitive object={cloned} />
-    </group>
-  );
-}
-
 function PagodaSkeleton({ position, tiltRad = Math.PI / 6 }: { position: [number, number, number]; tiltRad?: number }) {
   return (
     <group position={position} rotation={[0, 0, tiltRad]}>
@@ -83,16 +65,41 @@ function PagodaSkeleton({ position, tiltRad = Math.PI / 6 }: { position: [number
   );
 }
 
-export function SceneWaitWhy({ depthRef }: SceneProps) {
+export function SceneWaitWhy({ depthRef, onEvent }: SceneProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const recursionActiveRef = useRef(false);
+  const heartbeatStartedRef = useRef(false);
 
-  useFrame(({ scene }) => {
+  useFrame(({ scene, clock }) => {
     const d = depthRef.current;
     const inActive = d >= SCENE_WAIT_WHY_DEPTH_RANGE[0] && d < SCENE_WAIT_WHY_DEPTH_RANGE[1];
     if (groupRef.current) groupRef.current.visible = inActive;
+    if (inActive && !recursionActiveRef.current) {
+      onEvent?.({ type: 'mirror-recursion-start' });
+      recursionActiveRef.current = true;
+    } else if (!inActive && recursionActiveRef.current) {
+      onEvent?.({ type: 'mirror-recursion-end' });
+      recursionActiveRef.current = false;
+    }
     if (inActive) {
       if (!(scene.background instanceof THREE.Color)) scene.background = new THREE.Color();
       (scene.background as THREE.Color).set(SCENE_BG_HEX);
+      if (!(scene.fog instanceof THREE.FogExp2)) scene.fog = new THREE.FogExp2(SCENE_BG_HEX, 0.018);
+      scene.fog.color.set(SCENE_BG_HEX);
+      scene.fog.density = 0.018;
+
+      const recursion = computeRecursionIntensity(d);
+      if (groupRef.current) {
+        groupRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.22) * 0.08 * recursion;
+        const breath = 1 + Math.sin(clock.elapsedTime * 1.15) * 0.018 * recursion;
+        groupRef.current.scale.setScalar(breath);
+      }
+      if (!heartbeatStartedRef.current && d >= 0.32) {
+        onEvent?.({ type: 'heartbeat-start' });
+        heartbeatStartedRef.current = true;
+      }
+    } else if (d < SCENE_WAIT_WHY_DEPTH_RANGE[0]) {
+      heartbeatStartedRef.current = false;
     }
   });
 
@@ -107,7 +114,15 @@ export function SceneWaitWhy({ depthRef }: SceneProps) {
       <pointLight position={[0, 2, 4]} intensity={1.0} color="#a888d0" distance={15} decay={1.5} />
       <Suspense fallback={null}>
         {CHRYSAORA_PLACEMENTS.map((p, i) => (
-          <ChrysaoraInstance key={i} pos={p.pos} rot={p.rot} scale={p.scale} />
+          <Chrysaora
+            key={i}
+            position={[...p.pos]}
+            rotation={[...p.rot]}
+            scale={p.scale}
+            tint="#bda6d4"
+            emissive="#8e68b8"
+            emissiveIntensity={1.2}
+          />
         ))}
       </Suspense>
       {/* Pagodas in front of camera (z<0) since yaw is now 0, so they're always in view */}
@@ -116,5 +131,3 @@ export function SceneWaitWhy({ depthRef }: SceneProps) {
     </group>
   );
 }
-
-useGLTF.preload(CHRYSAORA_URL);
