@@ -5,11 +5,12 @@ import { Suspense, useRef } from 'react';
 import * as THREE from 'three';
 import type { SceneProps } from '../types';
 import { Chrysaora } from '../visuals/Chrysaora';
+import { CinematicDome } from '../visuals/CinematicDome';
 import { ParticleField } from '../visuals/ParticleField';
 
 export const SCENE_WAKE_UP_DEPTH_RANGE = [0.38, 0.50] as const;
 const HARD_CUT_WARNING_DEPTH = 0.375;
-const SCENE_BG_COLOR = '#c89a82';
+const SCENE_BG_COLOR = '#160c18';
 
 export function computeBellOpenness(depth: number): number {
   return THREE.MathUtils.smoothstep(depth, 0.38, 0.42);
@@ -42,9 +43,9 @@ export function SceneWakeUp({ depthRef, onEvent }: SceneProps) {
 
     if (!(scene.background instanceof THREE.Color)) scene.background = new THREE.Color();
     scene.background.set(SCENE_BG_COLOR);
-    if (!(scene.fog instanceof THREE.FogExp2)) scene.fog = new THREE.FogExp2('#7b536d', 0.018);
-    scene.fog.color.set('#7b536d');
-    scene.fog.density = 0.018;
+    if (!(scene.fog instanceof THREE.FogExp2)) scene.fog = new THREE.FogExp2('#2e1630', 0.012);
+    scene.fog.color.set('#2e1630');
+    scene.fog.density = 0.012;
 
     const openness = computeBellOpenness(d);
     if (bellRef.current) {
@@ -54,12 +55,14 @@ export function SceneWakeUp({ depthRef, onEvent }: SceneProps) {
 
   return (
     <group ref={groupRef} visible={false}>
-      <ambientLight intensity={0.65} color="#8d7198" />
-      <pointLight position={[0, 3, -5]} intensity={7} distance={30} decay={1.2} color="#ffd6aa" />
-      <ParticleField count={160} spread={[15, 10, 24]} color="#f1c8a0" size={0.06} opacity={0.5} speed={0.018} />
-      <group ref={bellRef} position={[0, 0, -11]} rotation={[0, 0, 0]}>
+      <CinematicDome top="#4a233d" bottom="#060307" glow="#b45f63" glowStrength={0.34} />
+      <ambientLight intensity={0.22} color="#80617c" />
+      <pointLight position={[0, 4, -7]} intensity={5} distance={32} decay={1.2} color="#ffb28c" />
+      <pointLight position={[-5, -1, -12]} intensity={3} distance={24} color="#8e4b88" />
+      <ParticleField count={190} spread={[17, 11, 28]} color="#e8a88c" size={0.035} opacity={0.48} speed={0.018} />
+      <group ref={bellRef} position={[0, 0, -15]} rotation={[0, 0, 0]}>
         <Suspense fallback={null}>
-          <Chrysaora scale={0.55} tint="#d8adc0" emissive="#b05f78" emissiveIntensity={1.2} />
+          <Chrysaora height={8.5} tint="#9c6a86" emissive="#8d405f" emissiveIntensity={0.72} />
         </Suspense>
       </group>
     </group>

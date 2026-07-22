@@ -55,7 +55,7 @@ export function SceneDayAfter({ depthRef }: SceneProps) {
 
       <group ref={jellyRef} position={[0, -0.25, -7]} rotation={[0.2, 0.5, Math.PI / 2]}>
         <Suspense fallback={null}>
-          <Chrysaora scale={0.24} tint="#a98994" emissive="#3f2634" emissiveIntensity={0.12} />
+          <Chrysaora height={5.5} tint="#a98994" emissive="#3f2634" emissiveIntensity={0.12} />
         </Suspense>
       </group>
     </group>

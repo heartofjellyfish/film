@@ -19,6 +19,7 @@ import {
   getSceneBySlug,
   getActiveScenesAt,
   getAllAnchors,
+  getSceneIndexAtDepth,
 } from './registry';
 import { SCENE_SEA_RISING_DEPTH_RANGE } from './SceneSeaRising';
 import { SCENE_IN_MEMORY_DEPTH_RANGE } from './SceneInMemory';
@@ -31,7 +32,7 @@ import { SCENE_BELONGS_TO_SEA_DEPTH_RANGE } from './SceneBelongsToSea';
 import { SCENE_DAY_AFTER_DEPTH_RANGE } from './SceneDayAfter';
 import { SCENE_SEA_RISEN_DEPTH_RANGE } from './SceneSeaRisen';
 import { SceneSeaRising } from './SceneSeaRising';
-import { SceneJellyHeart } from './SceneJellyHeart';
+import { SceneJellyHeartCinematic as SceneJellyHeart } from './SceneJellyHeartCinematic';
 
 describe('SCENE_REGISTRY', () => {
   it('has exactly 10 entries (all scenes per master design §4.5)', () => {
@@ -161,6 +162,17 @@ describe('getAllAnchors', () => {
     for (let i = 1; i < anchors.length; i++) {
       expect(anchors[i].anchor).toBeGreaterThan(anchors[i - 1].anchor);
     }
+  });
+});
+
+describe('getSceneIndexAtDepth', () => {
+  it('uses exact scene hand-off depths and clamps endpoints', () => {
+    expect(getSceneIndexAtDepth(-1)).toBe(0);
+    expect(getSceneIndexAtDepth(0.099)).toBe(0);
+    expect(getSceneIndexAtDepth(0.10)).toBe(1);
+    expect(getSceneIndexAtDepth(0.62)).toBe(6);
+    expect(getSceneIndexAtDepth(0.94)).toBe(9);
+    expect(getSceneIndexAtDepth(2)).toBe(9);
   });
 });
 

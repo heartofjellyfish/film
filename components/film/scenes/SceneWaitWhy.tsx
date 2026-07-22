@@ -5,10 +5,12 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { SceneProps } from '../types';
 import { Chrysaora } from '../visuals/Chrysaora';
+import { CinematicDome } from '../visuals/CinematicDome';
+import { ParticleField } from '../visuals/ParticleField';
 
 export const SCENE_WAIT_WHY_DEPTH_RANGE = [0.26, 0.38] as const;
 
-const SCENE_BG_HEX = '#3a2862'; // brighter purple bg for higher contrast
+const SCENE_BG_HEX = '#120d22';
 
 export function computeRecursionIntensity(depth: number): number {
   const progress = THREE.MathUtils.clamp(
@@ -26,44 +28,12 @@ export function computeRecursionIntensity(depth: number): number {
 // as default. Iter 3/4 used outer scale 2.0 → effective 200x → camera was INSIDE the bell.
 // Iter 5: use outer scale 0.4 → effective 40x bell ≈ 7 units across — visible silhouette.
 const CHRYSAORA_PLACEMENTS = [
-  { pos: [0, -3, -10], rot: [0, 0, 0], scale: 0.4 },                  // 0° (front, -z) — primary
-  { pos: [5, -2.5, -8], rot: [0, -Math.PI / 4, 0], scale: 0.4 },      // 45°
-  { pos: [7, -3, -3], rot: [0, -Math.PI / 2, 0], scale: 0.4 },        // 90° (+x)
-  { pos: [5, -2, 2], rot: [0, -3 * Math.PI / 4, 0], scale: 0.35 },    // 135°
-  { pos: [0, -3, 4], rot: [0, Math.PI, 0], scale: 0.35 },             // 180°
-  { pos: [-5, -2.5, 2], rot: [0, 3 * Math.PI / 4, 0], scale: 0.35 },  // 225°
-  { pos: [-7, -3, -3], rot: [0, Math.PI / 2, 0], scale: 0.4 },        // 270° (-x)
-  { pos: [-5, -2, -8], rot: [0, Math.PI / 4, 0], scale: 0.4 },        // 315°
+  { pos: [0, -2, -15], rot: [0, 0, 0], height: 8 },
+  { pos: [6, -2, -18], rot: [0, -0.45, 0], height: 6 },
+  { pos: [-6, -2, -18], rot: [0, 0.45, 0], height: 6 },
+  { pos: [11, -1, -24], rot: [0, -0.75, 0], height: 5 },
+  { pos: [-11, -1, -24], rot: [0, 0.75, 0], height: 5 },
 ] as const;
-
-// Pagoda constants — bright lavender, not pure white (caused over-exposure in iter 3).
-const PAGODA_COLOR = '#a890c8'; // muted lavender that still reads vs bg
-const PAGODA_LAYER_COUNT = 5;
-const PAGODA_LAYER_HEIGHT = 1.0;
-const PAGODA_LAYER_GAP = 1.2;
-const PAGODA_BASE_RADIUS = 1.5;
-const PAGODA_RADIUS_STEP = 0.2;
-
-function PagodaSkeleton({ position, tiltRad = Math.PI / 6 }: { position: [number, number, number]; tiltRad?: number }) {
-  return (
-    <group position={position} rotation={[0, 0, tiltRad]}>
-      {Array.from({ length: PAGODA_LAYER_COUNT }, (_, i) => {
-        const topR = PAGODA_BASE_RADIUS - i * PAGODA_RADIUS_STEP;
-        const botR = PAGODA_BASE_RADIUS - i * PAGODA_RADIUS_STEP + 0.3;
-        return (
-          <mesh key={i} position={[0, i * PAGODA_LAYER_GAP, 0]}>
-            <cylinderGeometry args={[topR, botR, PAGODA_LAYER_HEIGHT, 8]} />
-            <meshStandardMaterial color={PAGODA_COLOR} roughness={0.6} metalness={0.0} fog />
-          </mesh>
-        );
-      })}
-      <mesh position={[0, PAGODA_LAYER_COUNT * PAGODA_LAYER_GAP + 0.5, 0]}>
-        <coneGeometry args={[0.5, 1.2, 8]} />
-        <meshStandardMaterial color={PAGODA_COLOR} roughness={0.6} fog />
-      </mesh>
-    </group>
-  );
-}
 
 export function SceneWaitWhy({ depthRef, onEvent }: SceneProps) {
   const groupRef = useRef<THREE.Group>(null);
@@ -105,29 +75,29 @@ export function SceneWaitWhy({ depthRef, onEvent }: SceneProps) {
 
   return (
     <group ref={groupRef} visible={false}>
+      <CinematicDome top="#241633" bottom="#05040a" glow="#67417c" glowStrength={0.24} />
       {/* Balanced lighting — iter 4 reduced too much; bump ambient + add closer fill. */}
-      <ambientLight intensity={0.6} color="#9a7ac0" />
-      <directionalLight position={[2, 6, -8]} intensity={1.2} color="#d0b0e8" />
+      <ambientLight intensity={0.12} color="#65507f" />
+      <directionalLight position={[2, 6, -8]} intensity={0.5} color="#b795cf" />
       {/* Fill light midway between camera and front chrysaora */}
-      <pointLight position={[0, -2, -7]} intensity={2.0} color="#e0c8ff" distance={20} decay={1.5} />
+      <pointLight position={[0, -2, -8]} intensity={2.2} color="#ad83d0" distance={26} decay={1.5} />
       {/* Rim from behind to catch back of chrysaora */}
-      <pointLight position={[0, 2, 4]} intensity={1.0} color="#a888d0" distance={15} decay={1.5} />
+      <pointLight position={[0, 2, 2]} intensity={0.45} color="#725291" distance={18} decay={1.5} />
+      <ParticleField count={180} spread={[22, 14, 34]} color="#a783bd" size={0.025} opacity={0.42} speed={0.006} />
       <Suspense fallback={null}>
         {CHRYSAORA_PLACEMENTS.map((p, i) => (
           <Chrysaora
             key={i}
             position={[...p.pos]}
             rotation={[...p.rot]}
-            scale={p.scale}
-            tint="#bda6d4"
-            emissive="#8e68b8"
-            emissiveIntensity={1.2}
+            height={p.height}
+            tint="#5f4c75"
+            emissive="#62477d"
+            emissiveIntensity={0.42}
           />
         ))}
       </Suspense>
       {/* Pagodas in front of camera (z<0) since yaw is now 0, so they're always in view */}
-      <PagodaSkeleton position={[5, -4, -6]} tiltRad={Math.PI / 8} />   {/* right side, in front */}
-      <PagodaSkeleton position={[-5, -4, -6]} tiltRad={-Math.PI / 8} /> {/* left side, in front */}
     </group>
   );
 }

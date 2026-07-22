@@ -3,13 +3,15 @@
 import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const CHRYSAORA_URL = '/models/chrysaora/model.glb';
 
 export interface ChrysaoraProps {
   position?: [number, number, number];
   rotation?: [number, number, number];
-  scale?: number;
+  /** Desired world-space height after automatic GLB normalization. */
+  height?: number;
   flattenY?: number;
   tint?: string;
   emissive?: string;
@@ -23,7 +25,7 @@ export interface ChrysaoraProps {
 export function Chrysaora({
   position = [0, 0, 0],
   rotation = [0, 0, 0],
-  scale = 0.2,
+  height = 4,
   flattenY = 1,
   tint = '#c8b8d8',
   emissive = '#5a3d78',
@@ -31,8 +33,8 @@ export function Chrysaora({
 }: ChrysaoraProps) {
   const { scene } = useGLTF(CHRYSAORA_URL);
 
-  const clone = useMemo(() => {
-    const root = scene.clone(true);
+  const normalized = useMemo(() => {
+    const root = cloneSkeleton(scene);
     root.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
@@ -50,27 +52,34 @@ export function Chrysaora({
       });
       mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
     });
-    return root;
+    root.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(root);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    root.position.sub(center);
+    return { root, unitScale: size.y > 0 ? 1 / size.y : 1 };
   }, [scene, tint, emissive, emissiveIntensity]);
 
   useEffect(() => {
     return () => {
-      clone.traverse((object) => {
+      normalized.root.traverse((object) => {
         const mesh = object as THREE.Mesh;
         if (!mesh.isMesh) return;
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         materials.forEach((material) => material.dispose());
       });
     };
-  }, [clone]);
+  }, [normalized]);
+
+  const worldScale = height * normalized.unitScale;
 
   return (
     <group
       position={position}
       rotation={rotation}
-      scale={[scale, scale * flattenY, scale]}
+      scale={[worldScale, worldScale * flattenY, worldScale]}
     >
-      <primitive object={clone} />
+      <primitive object={normalized.root} />
     </group>
   );
 }

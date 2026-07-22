@@ -419,6 +419,24 @@ describe('parseQuery', () => {
     expect(q.focus).toBe('vi_heart');
   });
 
+  it('?qa=1&skipEntry=1&focus=iii_dream → isolated QA mode', () => {
+    expect(parseQuery('?qa=1&skipEntry=1&focus=iii_dream')).toEqual({
+      tweak: false,
+      stats: false,
+      focus: 'iii_dream',
+      forceMobile: false,
+      skipEntry: true,
+      qa: true,
+      qaDepth: undefined,
+    });
+  });
+
+  it('?qa=1&qaDepth=.995 → clamps and exposes exact QA depth', () => {
+    expect(parseQuery('?qa=1&qaDepth=.995').qaDepth).toBe(0.995);
+    expect(parseQuery('?qa=1&qaDepth=4').qaDepth).toBe(1);
+    expect(parseQuery('?qaDepth=.5').qaDepth).toBeUndefined();
+  });
+
   it('?skipEntry=1 → skipEntry true', () => {
     expect(parseQuery('?skipEntry=1').skipEntry).toBe(true);
   });

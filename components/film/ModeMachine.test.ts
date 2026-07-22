@@ -238,6 +238,13 @@ describe('ModeMachine', () => {
     expect(m.depthRef.current).toBeCloseTo(0.55, 5);
   });
 
+  it('9b: initialDepth locks QA at an exact clamped depth', () => {
+    const m = createModeMachine(makeDeps({ initialFocus: 'vi_heart', initialDepth: 1.4 }));
+    m.start();
+    expect(m.modeRef.current).toBe('listen');
+    expect(m.depthRef.current).toBe(1);
+  });
+
   // Test 10: one handler throws → other handlers still called
   it('10: a throwing handler does not prevent other handlers from being called', () => {
     const m = createModeMachine(makeDeps());

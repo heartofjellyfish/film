@@ -24,7 +24,7 @@ import { SceneInMemory } from './SceneInMemory';
 import { SceneDream } from './SceneDream';
 import { SceneWaitWhy } from './SceneWaitWhy';
 import { SceneWakeUp } from './SceneWakeUp';
-import { SceneJellyHeart } from './SceneJellyHeart';
+import { SceneJellyHeartCinematic as SceneJellyHeart } from './SceneJellyHeartCinematic';
 import { SceneYouShallSee } from './SceneYouShallSee';
 import { SceneBelongsToSea } from './SceneBelongsToSea';
 import { SceneDayAfter } from './SceneDayAfter';
@@ -51,6 +51,15 @@ export const SCENE_REGISTRY: ReadonlyArray<SceneRegistration> = [
   { slug: 'ix_day_after',       anchor: 0.90, component: SceneDayAfter },
   { slug: 'x_sea_risen',        anchor: 0.97, component: SceneSeaRisen },
 ] as const;
+
+/** Exact hand-off depths used to keep only nearby scenes mounted. */
+export const SCENE_DEPTH_BOUNDARIES = [0.10, 0.16, 0.26, 0.38, 0.50, 0.62, 0.74, 0.86, 0.94] as const;
+
+export function getSceneIndexAtDepth(depth: number): number {
+  const clamped = Math.max(0, Math.min(1, depth));
+  const index = SCENE_DEPTH_BOUNDARIES.findIndex((boundary) => clamped < boundary);
+  return index === -1 ? SCENE_REGISTRY.length - 1 : index;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers (pure functions — no side effects, no React)

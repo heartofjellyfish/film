@@ -80,6 +80,10 @@ export interface FilmRootQuery {
   forceMobile?: boolean;
   /** Debug: skip EntryCeremony, auto-mount Canvas. AudioContext won't resume (no user gesture). */
   skipEntry?: boolean;
+  /** Visual QA: isolate the focused scene and hide all DOM overlays. */
+  qa?: boolean;
+  /** Visual QA: lock the ModeMachine to an exact normalized depth. */
+  qaDepth?: number;
 }
 
 /**
@@ -100,8 +104,14 @@ export function parseQuery(search: string): FilmRootQuery {
 
   const forceMobile = params.get('forceMobile') === '1';
   const skipEntry = params.get('skipEntry') === '1' || undefined;
+  const qa = params.get('qa') === '1' || undefined;
+  const depthRaw = params.get('qaDepth');
+  const parsedDepth = depthRaw === null ? Number.NaN : Number(depthRaw);
+  const qaDepth = qa && Number.isFinite(parsedDepth)
+    ? Math.max(0, Math.min(1, parsedDepth))
+    : undefined;
 
-  return { tweak, stats, focus, forceMobile, skipEntry };
+  return { tweak, stats, focus, forceMobile, skipEntry, qa, qaDepth };
 }
 
 // ---------------------------------------------------------------------------
@@ -187,11 +197,15 @@ function FilmInner({ query, audio, showCeremony, onStart }: FilmInnerProps) {
         {/* EndCardWatcher: fires depth-end-card event when d >= 0.85 (Gap A). */}
         <EndCardWatcher />
         <Suspense fallback={null}>
-          <Scenes depthRef={depthRef} onEvent={handleSceneEvent} />
+          <Scenes
+            depthRef={depthRef}
+            onEvent={handleSceneEvent}
+            onlySlug={query.qa ? query.focus : undefined}
+          />
         </Suspense>
       </Canvas>
 
-      <Overlay />
+      {!query.qa && <Overlay />}
 
       {query.tweak && <TweakPanel />}
       {query.stats && <Stats />}
@@ -244,8 +258,9 @@ export function FilmRoot() {
       initialFocus: query.focus,
       autoEase: DEFAULT_AUTO_EASE_V2,
       autoDurationMs: PRODUCTION_AUTO_DURATION_MS,
+      initialDepth: query.qaDepth,
     }),
-    [capabilities, query.focus],
+    [capabilities, query.focus, query.qaDepth],
   );
 
   // --- ModeMachine instance (created once capabilities are ready) ---
@@ -377,7 +392,7 @@ export function FilmRoot() {
               onStart={handleStart}
             />
           </TweakProvider>
-          <SoundToggle />
+          {!query.qa && <SoundToggle />}
         </AudioProvider>
         </ScrollProvider>
       </ModeMachineProvider>

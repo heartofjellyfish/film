@@ -28,6 +28,8 @@ export interface ModeMachineDepsV2 extends ModeMachineDeps {
   autoEase?: ReadonlyArray<AutoEaseSegment>;
   /** Override AUTO_DURATION_MS. Default 22000 (dev) or 90000 (production). */
   autoDurationMs?: number;
+  /** Debug-only exact depth lock used by the visual QA route. */
+  initialDepth?: number;
 }
 
 export interface ModeMachine {
@@ -132,7 +134,7 @@ function maxScroll(): number {
 // ---------------------------------------------------------------------------
 
 export function createModeMachine(deps: ModeMachineDepsV2): ModeMachineV2 {
-  const { envProbe, anchors, initialFocus, autoEase, autoDurationMs } = deps;
+  const { envProbe, anchors, initialFocus, autoEase, autoDurationMs, initialDepth } = deps;
 
   // -- Refs (returned; readable by consumers) --
   const depthRef: MutableRefObject<number> = { current: 0 };
@@ -295,6 +297,13 @@ export function createModeMachine(deps: ModeMachineDepsV2): ModeMachineV2 {
     // Without this, ?focus= routes enter listen mode but never attach the
     // scroll listener, so the user cannot scroll out of the focused view.
     attachScrollListener();
+
+    if (typeof initialDepth === 'number' && Number.isFinite(initialDepth)) {
+      depthRef.current = Math.max(0, Math.min(1, initialDepth));
+      modeRef.current = 'listen';
+      listenStartScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+      return;
+    }
 
     if (initialFocus) {
       const focusAnchor = anchors.find((a) => a.slug === initialFocus);

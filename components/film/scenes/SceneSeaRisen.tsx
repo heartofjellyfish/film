@@ -61,14 +61,34 @@ export function SceneSeaRisen({ depthRef, onEvent }: SceneProps) {
         <ambientLight intensity={0.65} color="#9eb6c2" />
         <mesh position={[0, 0, -20]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[180, 180]} />
-          <meshStandardMaterial color="#28566b" metalness={0.35} roughness={0.25} fog />
+          <meshStandardMaterial color="#173f52" emissive="#0b2531" emissiveIntensity={0.35} metalness={0.28} roughness={0.32} fog />
         </mesh>
         {[
-          [-14, 2, -18, 7], [12, 1.2, -27, 5], [-5, 0.8, -35, 4], [20, 1.5, -42, 6],
-        ].map(([x, y, z, size], index) => (
-          <mesh key={index} position={[x, y, z]}>
-            <boxGeometry args={[size, y * 2, size]} />
-            <meshStandardMaterial color="#303b41" roughness={0.85} fog />
+          [-15, 1.2, -13, 3.2, 2.5], [-10, 2.8, -18, 2.4, 4.5], [-5, 0.8, -14, 3.8, 2],
+          [1, 3.4, -18, 2.6, 5.2], [7, 1.5, -13, 4.2, 2.8], [13, 2.2, -20, 3, 3.6],
+          [-17, 2.4, -27, 2.8, 4], [-11, 0.7, -32, 4.5, 1.8], [-4, 2, -27, 3.2, 3.4],
+          [3, 1.1, -33, 4, 2.3], [10, 3, -29, 2.4, 4.8], [17, 1.4, -35, 3.6, 2.6],
+          [-13, 1.3, -43, 3.5, 2.5], [-5, 2.7, -42, 2.6, 4.3], [5, 1.6, -45, 4.2, 2.9],
+          [14, 2.1, -44, 3.1, 3.5],
+        ].map(([x, y, z, width, height], index) => {
+          const depth = width * (0.72 + (index % 3) * 0.12);
+          return (
+            <group key={index} position={[x, y - height / 2, z]}>
+              <mesh>
+                <boxGeometry args={[width, height, depth]} />
+                <meshStandardMaterial color={index % 4 === 0 ? '#39484d' : '#26373e'} emissive="#111d22" emissiveIntensity={0.25} roughness={0.82} fog />
+              </mesh>
+              <mesh position={[0, height / 2 + 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[width * 0.86, depth * 0.86]} />
+                <meshBasicMaterial color={index % 5 === 0 ? '#92765f' : '#5d7479'} transparent opacity={0.72} toneMapped={false} />
+              </mesh>
+            </group>
+          );
+        })}
+        {[-15, -5, 7, 17].map((x, index) => (
+          <mesh key={x} position={[x, 0.035, -14 - index * 10]} rotation={[-Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[3.4 + index * 0.55, 0.045, 8, 80]} />
+            <meshBasicMaterial color="#87abb4" transparent opacity={0.32} depthWrite={false} toneMapped={false} />
           </mesh>
         ))}
       </group>
@@ -84,11 +104,11 @@ export function SceneSeaRisen({ depthRef, onEvent }: SceneProps) {
           </mesh>
         ))}
         <Suspense fallback={null}>
-          <Chrysaora position={[-4, 1, -10]} rotation={[0, 0.4, 0]} scale={0.18} tint="#93d2d0" emissive="#328c92" emissiveIntensity={0.9} />
-          <Chrysaora position={[3, -1, -13]} rotation={[0, -0.7, 0]} scale={0.22} tint="#a1d8d0" emissive="#3b8c8d" emissiveIntensity={0.85} />
-          <Chrysaora position={[0, 4, -20]} rotation={[0, 0.2, 0]} scale={0.15} tint="#82bdc8" emissive="#316f83" emissiveIntensity={0.7} />
-          <Chrysaora position={[7, 3, -25]} rotation={[0, 1.1, 0]} scale={0.14} tint="#88c8c4" emissive="#2b7b80" emissiveIntensity={0.75} />
-          <Chrysaora position={[-7, -3, -24]} rotation={[0, -1.2, 0]} scale={0.16} tint="#7fb7c4" emissive="#326b80" emissiveIntensity={0.65} />
+          <Chrysaora position={[-4, 1, -10]} rotation={[0, 0.4, 0]} height={4.8} tint="#93d2d0" emissive="#328c92" emissiveIntensity={0.9} />
+          <Chrysaora position={[3, -1, -13]} rotation={[0, -0.7, 0]} height={5.8} tint="#a1d8d0" emissive="#3b8c8d" emissiveIntensity={0.85} />
+          <Chrysaora position={[0, 4, -20]} rotation={[0, 0.2, 0]} height={4} tint="#82bdc8" emissive="#316f83" emissiveIntensity={0.7} />
+          <Chrysaora position={[7, 3, -25]} rotation={[0, 1.1, 0]} height={3.6} tint="#88c8c4" emissive="#2b7b80" emissiveIntensity={0.75} />
+          <Chrysaora position={[-7, -3, -24]} rotation={[0, -1.2, 0]} height={4.2} tint="#7fb7c4" emissive="#326b80" emissiveIntensity={0.65} />
         </Suspense>
       </group>
     </group>

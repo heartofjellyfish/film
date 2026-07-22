@@ -8,14 +8,15 @@
  * callback that routes scene-local events (e.g. engulfment in scene #1)
  * up to FilmRoot.
  *
- * Scenes never import each other. Each scene reads `depthRef` in useFrame
- * and early-returns when it's outside its active window — so we can leave
- * every scene mounted at all times without paying for animation work that
- * isn't visible.
+ * Scenes never import each other. The current scene and its immediate
+ * neighbours stay mounted so hand-offs are warm without loading all ten
+ * scenes and every GLB clone at once.
  */
+import { useState } from 'react';
 import type { MutableRefObject } from 'react';
-import { SCENE_REGISTRY } from './registry';
-import type { SceneEvent } from '../types';
+import { useFrame } from '@react-three/fiber';
+import { getSceneIndexAtDepth, SCENE_REGISTRY } from './registry';
+import type { SceneEvent, TrackSlug } from '../types';
 
 export interface ScenesProps {
   depthRef: MutableRefObject<number>;
@@ -25,12 +26,26 @@ export interface ScenesProps {
    * AudioSubsystem.setLowPassCutoff() on engulfment.
    */
   onEvent?: (e: SceneEvent) => void;
+  /** Debug-only isolation for deterministic visual QA screenshots. */
+  onlySlug?: TrackSlug;
 }
 
-export function Scenes({ depthRef, onEvent }: ScenesProps) {
+export function Scenes({ depthRef, onEvent, onlySlug }: ScenesProps) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useFrame(() => {
+    if (onlySlug) return;
+    const nextIndex = getSceneIndexAtDepth(depthRef.current);
+    if (nextIndex !== activeIndex) setActiveIndex(nextIndex);
+  });
+
+  const scenes = onlySlug
+    ? SCENE_REGISTRY.filter((scene) => scene.slug === onlySlug)
+    : SCENE_REGISTRY.filter((_, index) => Math.abs(index - activeIndex) <= 1);
+
   return (
     <>
-      {SCENE_REGISTRY.map(({ slug, component: SceneComponent }) => (
+      {scenes.map(({ slug, component: SceneComponent }) => (
         <SceneComponent key={slug} depthRef={depthRef} onEvent={onEvent} />
       ))}
     </>

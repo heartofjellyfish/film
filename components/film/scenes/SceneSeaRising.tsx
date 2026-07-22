@@ -14,7 +14,7 @@
  * That callback is the only way this scene talks to AudioSubsystem (which
  * uses the event to trigger the low-pass cutoff drop).
  */
-import { Sky, useGLTF } from '@react-three/drei';
+import { Sky } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 // NOTE: camera is handled by CameraController (Level 3, FilmRoot). This scene
@@ -22,10 +22,7 @@ import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import type { SceneProps } from '../types';
-
-const CHRYSAORA_URL = '/models/chrysaora/model.glb';
-// chrysaora is ~5 MB — small enough to preload (first-paint budget allows it).
-useGLTF.preload(CHRYSAORA_URL);
+import { Chrysaora } from '../visuals/Chrysaora';
 
 // ---------------------------------------------------------------------------
 // Constants and pure helpers (testable without R3F)
@@ -93,36 +90,15 @@ function Beach() {
  * approaching water line. Spec §5.6: position (15, -8, -40), scale 0.8.
  */
 function DistantJellyfish() {
-  const { scene } = useGLTF(CHRYSAORA_URL);
-  const groupRef = useRef<THREE.Group>(null);
-
-  // Clone the scene so this instance is independent (the same GLB will be
-  // re-used by SceneTransition; mutating shared materials would cross-
-  // contaminate scenes — RED LINE: scenes must not affect each other).
-  const cloned = useMemo(() => scene.clone(true), [scene]);
-
-  useEffect(() => {
-    cloned.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      mats.forEach((m) => {
-        const mat = m as THREE.MeshStandardMaterial;
-        if (!mat) return;
-        mat.fog = true;
-        mat.transparent = false;
-        if (mat.emissive) {
-          mat.emissive.setHex(0xd4b890); // pale gold
-          mat.emissiveIntensity = 0.3; // very low — just a hint
-        }
-      });
-    });
-  }, [cloned]);
-
   return (
-    <group ref={groupRef} position={[15, -8, -40]} scale={0.8}>
-      <primitive object={cloned} />
-    </group>
+    <Chrysaora
+      position={[13, -5, -45]}
+      rotation={[0, -0.5, 0]}
+      height={7}
+      tint="#778895"
+      emissive="#415463"
+      emissiveIntensity={0.18}
+    />
   );
 }
 

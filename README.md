@@ -22,6 +22,8 @@ Optional URL params:
 - `?tweak=1` — show Leva slider panel
 - `?stats=1` — show R3F FPS / draw call counter
 - `?focus=<track-slug>` — lock to any scene anchor for review
+- `?focus=<track-slug>&skipEntry=1&qa=1` — isolate one scene with overlays hidden
+- add `&qaDepth=.645` to lock that isolated scene to an exact depth
 
 Preview the jellyfish model alone: `localhost:3000/preview-jelly`
 
